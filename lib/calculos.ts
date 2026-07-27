@@ -11,7 +11,7 @@ import type {
   IndicadorSugestao,
   Classificacao,
 } from "@/types";
-import { UNIDADES_COM_AREA } from "@/types";
+import { UNIDADES_COM_AREA, UNIDADES_LINEARES } from "@/types";
 
 Decimal.set({ precision: 10, rounding: Decimal.ROUND_HALF_UP });
 
