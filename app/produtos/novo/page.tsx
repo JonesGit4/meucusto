@@ -184,12 +184,17 @@ export default function NovoProdutoPage() {
               </div>
             )}
 
-            {tempoMinutos > 0 && db.valorHora && (
+            {/* Mão de obra — sempre visível se houver tempo */}
+            {tempoMinutos > 0 && (
               <div>
                 <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">👷 Mão de obra</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--color-text-secondary)]">{formatTempo(tempoMinutos)}</span>
-                  <span className="text-white font-medium">{formatBRL(custoMaoDeObra(tempo, db.valorHora))}</span>
+                  {db.valorHora ? (
+                    <span className="text-white font-medium">{formatBRL(custoMaoDeObra(tempo, db.valorHora))}</span>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)] text-xs">Configure o Valor Hora</span>
+                  )}
                 </div>
               </div>
             )}
