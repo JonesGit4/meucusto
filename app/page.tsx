@@ -46,13 +46,6 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold"><span className="gradient-text">Meu Custo</span></h1>
           <div className="flex items-center gap-2">
-            {db.produtos.length > 0 && (
-              <button onClick={() => exportBackup(db)}
-                className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)]"
-                title="Exportar backup">
-                📥 Exportar
-              </button>
-            )}
             <label className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)] cursor-pointer"
               title="Importar backup">
               📤 Importar
@@ -64,11 +57,9 @@ export default function Home() {
                     const text = await file.text();
                     const data = JSON.parse(text);
                     if (data.versao && data.produtos) {
-                      // Backup completo
                       persist(data);
                       window.location.reload();
                     } else if (data.valorHora || data.produtos) {
-                      // Backup do exportBackup
                       persist(data);
                       window.location.reload();
                     } else {
@@ -80,6 +71,13 @@ export default function Home() {
                 }}
               />
             </label>
+            {db.produtos.length > 0 && (
+              <button onClick={() => exportBackup(db)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)]"
+                title="Exportar backup">
+                📥 Exportar
+              </button>
+            )}
             {temValorHora ? (
             <Link href="/produtos/novo" className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90">+ Novo</Link>
           ) : (
