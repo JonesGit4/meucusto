@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useLocalDB } from "@/hooks/useLocalDB";
 import { ImageUploader } from "@/components/ImageUploader";
@@ -29,20 +29,18 @@ const INDICADOR_COR: Record<IndicadorSugestao, string> = {
 
 function novoInsumo(ordem: number): Insumo {
   return {
-    id: crypto.randomUUID(),
-    nome: "",
-    quantidade: 0,
-    unidade: "unidade" as UnidadeMedida,
-    custoUnitario: 0,
-    usaPacote: false,
-    quantidadePacote: 0,
-    valorPacote: 0,
-    ordem,
+    id: crypto.randomUUID(), nome: "", quantidade: 0,
+    unidade: "unidade" as UnidadeMedida, custoUnitario: 0,
+    usaPacote: false, quantidadePacote: 0, valorPacote: 0, ordem,
   };
 }
 
 function novoEquipamento(): EquipamentoEletrico {
   return { id: crypto.randomUUID(), nome: "", potenciaWatts: 0, tempoUsoMinutos: 0, custoKwh: 0.85 };
+}
+
+function insumoCompleto(i: Insumo): boolean {
+  return i.nome.trim().length > 0 && (i.usaPacote ? i.quantidadePacote > 0 && i.valorPacote > 0 : i.custoUnitario > 0);
 }
 
 type Aba = "materiais" | "tempo" | "equipamentos";
@@ -60,24 +58,35 @@ export default function NovoProdutoPage() {
   const [tempoMinutos, setTempoMinutos] = useState(0);
   const [equipamentos, setEquipamentos] = useState<EquipamentoEletrico[]>([]);
   const [aba, setAba] = useState<Aba>("materiais");
+  const [saved, setSaved] = useState(false);
 
-  // NOVO em cima (unshift)
-  const addInsumo = () => setInsumos((p) => [novoInsumo(0), ...p]);
+  const addInsumo = useCallback(() => {
+    setInsumos((p) => {
+      // Se já tem um vazio no topo, não adiciona outro
+      if (p.length > 0 && !insumoCompleto(p[0])) return p;
+      return [novoInsumo(0), ...p];
+    });
+  }, []);
+
   const removeInsumo = (id: string) => setInsumos((p) => p.filter((i) => i.id !== id));
-  const updateInsumo = (id: string, u: Partial<Insumo>) => setInsumos((p) => p.map((i) => (i.id === id ? { ...i, ...u } : i)));
+  const updateInsumo = (id: string, u: Partial<Insumo>) =>
+    setInsumos((p) => p.map((i) => (i.id === id ? { ...i, ...u } : i)));
+
   const addEquipamento = () => setEquipamentos((p) => [novoEquipamento(), ...p]);
   const removeEquipamento = (id: string) => setEquipamentos((p) => p.filter((e) => e.id !== id));
-  const updateEquipamento = (id: string, u: Partial<EquipamentoEletrico>) => setEquipamentos((p) => p.map((e) => (e.id === id ? { ...e, ...u } : e)));
+  const updateEquipamento = (id: string, u: Partial<EquipamentoEletrico>) =>
+    setEquipamentos((p) => p.map((e) => (e.id === id ? { ...e, ...u } : e)));
 
   const tempo = { minutos: tempoMinutos };
   const custo = custoTotalDireto(insumos, db.valorHora ?? undefined, tempo, equipamentos);
-  const preco = Number(precoVenda) || null;
+  const preco = Number(precoVenda.replace(",", ".")) || null;
   const precoSugerido = calcularPrecoSugerido(custo);
   const indicador = indicadorSugestao(custo, precoSugerido);
   const totalMinutos = tempoTotalMinutos(tempo, equipamentos);
 
   const handleSave = () => {
     if (!nome.trim()) return;
+    setSaved(true);
     const produto: Produto = {
       id: crypto.randomUUID(), nome: sanitizeAndTrim(nome), tipo,
       precoVenda: preco || null,
@@ -97,10 +106,12 @@ export default function NovoProdutoPage() {
   };
 
   const ABAS: { key: Aba; label: string; count: number }[] = [
-    { key: "materiais", label: "Materiais", count: insumos.length },
+    { key: "materiais", label: "Materiais", count: insumos.filter(i => i.nome.trim()).length },
     { key: "tempo", label: "Tempo", count: tempoMinutos > 0 ? 1 : 0 },
-    { key: "equipamentos", label: "Equipamentos", count: equipamentos.length },
+    { key: "equipamentos", label: "Equipamentos", count: equipamentos.filter(e => e.nome.trim()).length },
   ];
+
+  const temDados = insumos.some(i => insumoCompleto(i)) || equipamentos.some(e => e.nome.trim()) || tempoMinutos > 0;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-primary)] pb-24">
@@ -108,7 +119,7 @@ export default function NovoProdutoPage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-[var(--color-text-secondary)] hover:text-white">←</Link>
-            <h1 className="text-lg font-semibold">Novo Produto</h1>
+            <h1 className="text-lg font-semibold">{saved ? "Produto salvo" : "Novo Produto"}</h1>
           </div>
           <button onClick={handleSave} disabled={!nome.trim()} className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-40 hover:opacity-90">Salvar</button>
         </div>
@@ -117,107 +128,50 @@ export default function NovoProdutoPage() {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Dados básicos */}
         <section className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Nome do produto *</label>
-            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Bolsa de Couro Artesanal" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
-          </div>
+          <input
+            type="text"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            readOnly={saved}
+            placeholder="Nome do produto *"
+            className={`w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-lg font-semibold text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${saved ? "opacity-60" : ""}`}
+          />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Tipo *</label>
               <div className="flex gap-2">
                 {(["fisico", "servico"] as TipoProduto[]).map((t) => (
-                  <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${tipo === t ? "gradient-bg text-white" : "bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"}`}>{t === "fisico" ? "Físico" : "Serviço"}</button>
+                  <button key={t} onClick={() => !saved && setTipo(t)} disabled={saved}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${tipo === t ? "gradient-bg text-white" : "bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"} ${saved ? "opacity-60 cursor-default" : ""}`}>
+                    {t === "fisico" ? "Físico" : "Serviço"}
+                  </button>
                 ))}
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Preço <span className="text-[var(--color-text-muted)]">(opcional)</span></label>
-              <input type="number" inputMode="decimal" value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} placeholder="Sugestão automática" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
+              <input type="text" inputMode="decimal"
+                value={precoVenda}
+                onChange={(e) => { if (saved) return; setPrecoVenda(e.target.value); }}
+                readOnly={saved}
+                placeholder="Sugestão automática"
+                className={`w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${saved ? "opacity-60" : ""}`} />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Categoria</label>
-            <input type="text" value={categoria} onChange={(e) => setCategoria(e.target.value)} placeholder="Ex: Bolsas" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
-          </div>
+          <input type="text" value={categoria} onChange={(e) => !saved && setCategoria(e.target.value)} readOnly={saved} placeholder="Categoria (opcional)"
+            className={`w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${saved ? "opacity-60" : ""}`} />
         </section>
 
-        <section><ImageUploader onImageReady={setImagemDataUrl} currentImage={imagemDataUrl} /></section>
+        {/* ═══ PRÉVIA NO TOPO (abaixo do nome) ═══ */}
+        {temDados && (
+          <section className="glass rounded-2xl p-5 space-y-3 animate-fade-in border border-[var(--color-border-subtle)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">📋 Resumo do Custo</h2>
 
-        {/* ═══ ABAS ═══ */}
-        <div className="flex gap-1 bg-[var(--color-bg-card)] rounded-xl p-1">
-          {ABAS.map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setAba(key)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
-                aba === key ? "gradient-bg text-white" : "text-[var(--color-text-muted)] hover:text-white"
-              }`}
-            >
-              {label}
-              {count > 0 && (
-                <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${aba === key ? "bg-white/20" : "bg-[var(--color-border-subtle)]"}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Conteúdo da aba */}
-        {aba === "materiais" && (
-          <section className="space-y-2">
-            {insumos.length === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum material adicionado</p>
-            )}
-            {insumos.map((i) => (
-              <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)} onRemove={() => removeInsumo(i.id)} canRemove={true} />
-            ))}
-          </section>
-        )}
-
-        {aba === "tempo" && (
-          <section><TempoTrabalhoCard minutos={tempoMinutos} onChange={setTempoMinutos} /></section>
-        )}
-
-        {aba === "equipamentos" && (
-          <section className="space-y-2">
-            {equipamentos.length === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum equipamento adicionado</p>
-            )}
-            {equipamentos.map((eq) => (
-              <EquipamentoRow key={eq.id} eq={eq} onChange={(u) => updateEquipamento(eq.id, u)} onRemove={() => removeEquipamento(eq.id)} canRemove={true} />
-            ))}
-          </section>
-        )}
-
-        {/* Botão flutuante de adicionar (baseado na aba ativa) */}
-        <div className="fixed bottom-20 right-4 z-40 md:bottom-6">
-          <button
-            onClick={() => {
-              if (aba === "materiais") addInsumo();
-              else if (aba === "equipamentos") addEquipamento();
-            }}
-            className={`w-14 h-14 rounded-full gradient-bg text-white shadow-lg flex items-center justify-center hover:opacity-90 transition-all active:scale-95 ${
-              aba === "tempo" ? "hidden" : ""
-            }`}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* ═══ PRÉVIA DISCRIMINADA ═══ */}
-        {(insumos.some(i => i.nome.trim()) || equipamentos.some(e => e.nome.trim()) || tempoMinutos > 0) && (
-          <section className="glass rounded-2xl p-5 space-y-4 animate-fade-in">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Prévia Detalhada</h2>
-
-            {/* Materiais */}
-            {insumos.filter(i => i.nome.trim()).length > 0 && (
+            {insumos.filter(i => insumoCompleto(i)).length > 0 && (
               <div>
                 <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">📦 Materiais</p>
                 <div className="space-y-1">
-                  {insumos.filter(i => i.nome.trim()).map((i) => {
+                  {insumos.filter(i => insumoCompleto(i)).map((i) => {
                     const ci = custoInsumo(i);
                     return (
                       <div key={i.id} className="flex justify-between text-sm">
@@ -230,7 +184,6 @@ export default function NovoProdutoPage() {
               </div>
             )}
 
-            {/* Mão de obra */}
             {tempoMinutos > 0 && db.valorHora && (
               <div>
                 <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">👷 Mão de obra</p>
@@ -241,7 +194,6 @@ export default function NovoProdutoPage() {
               </div>
             )}
 
-            {/* Equipamentos */}
             {equipamentos.filter(e => e.nome.trim()).length > 0 && (
               <div>
                 <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">⚡ Equipamentos</p>
@@ -259,10 +211,7 @@ export default function NovoProdutoPage() {
               </div>
             )}
 
-            {/* Separador */}
             <div className="border-t border-[var(--color-border-subtle)]" />
-
-            {/* Total */}
             <div className="flex justify-between">
               <span className="text-sm font-medium text-white">Custo total</span>
               <span className="text-sm font-bold text-white">{formatBRL(custo)}</span>
@@ -272,7 +221,6 @@ export default function NovoProdutoPage() {
               <span>{formatTempo(totalMinutos)}</span>
             </div>
 
-            {/* Preço sugerido ou margem */}
             <div className="border-t border-[var(--color-border-subtle)] pt-3">
               {preco ? (
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -290,6 +238,100 @@ export default function NovoProdutoPage() {
               )}
             </div>
           </section>
+        )}
+
+        {/* Imagem */}
+        {!saved && <section><ImageUploader onImageReady={setImagemDataUrl} currentImage={imagemDataUrl} /></section>}
+
+        {/* ═══ ABAS ═══ */}
+        {!saved && (
+          <div className="flex gap-1 bg-[var(--color-bg-card)] rounded-xl p-1">
+            {ABAS.map(({ key, label, count }) => (
+              <button key={key} onClick={() => setAba(key)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
+                  aba === key ? "gradient-bg text-white" : "text-[var(--color-text-muted)] hover:text-white"
+                }`}>
+                {label}
+                {count > 0 && <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${aba === key ? "bg-white/20" : "bg-[var(--color-border-subtle)]"}`}>{count}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Conteúdo da aba (modo edição) */}
+        {!saved && aba === "materiais" && (
+          <section className="space-y-2">
+            {insumos.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum material. Clique + para adicionar.</p>
+            )}
+            {insumos.map((i) => (
+              <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)}
+                onRemove={() => removeInsumo(i.id)} canRemove={true}
+                readonly={false} />
+            ))}
+          </section>
+        )}
+
+        {!saved && aba === "tempo" && (
+          <section><TempoTrabalhoCard minutos={tempoMinutos} onChange={setTempoMinutos} readonly={saved} /></section>
+        )}
+
+        {!saved && aba === "equipamentos" && (
+          <section className="space-y-2">
+            {equipamentos.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum equipamento. Clique + para adicionar.</p>
+            )}
+            {equipamentos.map((eq) => (
+              <EquipamentoRow key={eq.id} eq={eq} onChange={(u) => updateEquipamento(eq.id, u)}
+                onRemove={() => removeEquipamento(eq.id)} canRemove={true} readonly={saved} />
+            ))}
+          </section>
+        )}
+
+        {/* Modo salvo: cards readonly com barra verde */}
+        {saved && (
+          <section className="space-y-4">
+            {insumos.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Materiais</h3>
+                <div className="space-y-2">
+                  {insumos.map((i) => (
+                    <InsumoRow key={i.id} insumo={i} onChange={() => {}} onRemove={() => {}} canRemove={false} readonly={true} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {tempoMinutos > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Tempo</h3>
+                <TempoTrabalhoCard minutos={tempoMinutos} onChange={() => {}} readonly={true} />
+              </div>
+            )}
+            {equipamentos.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">Equipamentos</h3>
+                <div className="space-y-2">
+                  {equipamentos.map((eq) => (
+                    <EquipamentoRow key={eq.id} eq={eq} onChange={() => {}} onRemove={() => {}} canRemove={false} readonly={true} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Botão flutuante */}
+        {!saved && aba !== "tempo" && (
+          <div className="fixed bottom-20 right-4 z-40 md:bottom-6">
+            <button
+              onClick={() => aba === "materiais" ? addInsumo() : addEquipamento()}
+              className="w-14 h-14 rounded-full gradient-bg text-white shadow-lg flex items-center justify-center hover:opacity-90 transition-all active:scale-95"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
         )}
       </main>
 
