@@ -1,0 +1,71 @@
+{
+  "versao": 1,
+  "valorHora": {
+    "salario": 4000,
+    "custoCnpj": 85,
+    "taxasFixas": 100,
+    "horasMes": 160
+  },
+  "produtos": [
+    {
+      "id": "prod-cliente-001",
+      "nome": "Bolsa",
+      "tipo": "fisico",
+      "precoVenda": null,
+      "categoria": "Bolsas",
+      "insumos": [
+        {
+          "id": "ins-001",
+          "nome": "Etiqueta",
+          "unidade": "unidade",
+          "ordem": 0,
+          "valorPago": 0.5,
+          "quantidadeCompra": 10,
+          "quantidadeUso": 1
+        },
+        {
+          "id": "ins-002",
+          "nome": "Cursor",
+          "unidade": "unidade",
+          "ordem": 1,
+          "valorPago": 3,
+          "quantidadeCompra": 10,
+          "quantidadeUso": 1
+        },
+        {
+          "id": "ins-003",
+          "nome": "Zíper",
+          "unidade": "centimetros",
+          "ordem": 2,
+          "valorPago": 1,
+          "comprimentoCompra": 100,
+          "comprimentoUso": 10
+        },
+        {
+          "id": "ins-004",
+          "nome": "Montana",
+          "unidade": "cm2",
+          "ordem": 3,
+          "valorPago": 36,
+          "alturaCompra": 50,
+          "larguraCompra": 140,
+          "alturaUso": 12,
+          "larguraUso": 18
+        }
+      ],
+      "tempoTrabalho": { "minutos": 25 },
+      "equipamentos": [
+        {
+          "id": "eq-001",
+          "nome": "Máquina de Costura",
+          "potenciaWatts": 1000,
+          "tempoUsoMinutos": 10,
+          "custoKwh": 0.85
+        }
+      ],
+      "cenarios": [],
+      "createdAt": "2026-07-27T00:00:00Z",
+      "updatedAt": "2026-07-27T00:00:00Z"
+    }
+  ]
+}

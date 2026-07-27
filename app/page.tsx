@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { BottomNav } from "@/components/BottomNav";
 import Link from "next/link";
 import { useMemo } from "react";
+import { AuthButton } from "@/components/AuthButton";
 import { exportBackup } from "@/lib/backup";
 import {
   custoTotalDireto, margemLiquida, classificarProduto, tempoTotalMinutos,
@@ -46,6 +47,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold"><span className="gradient-text">Meu Custo</span></h1>
           <div className="flex items-center gap-2">
+            <AuthButton />
             <label className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)] cursor-pointer"
               title="Importar backup">
               📤 Importar
