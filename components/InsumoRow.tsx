@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import type { Insumo, UnidadeMedida } from "@/types";
-import { UNIDADES_MEDIDA, UNIDADES_COM_AREA } from "@/types";
+import { UNIDADES_MEDIDA, UNIDADES_COM_AREA, UNIDADES_LINEARES } from "@/types";
+import { custoInsumo } from "@/lib/calculos";
 
 interface Props {
   insumo: Insumo;
@@ -12,50 +13,39 @@ interface Props {
   readonly?: boolean;
 }
 
-function formatBRL(v: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); }
-
-/** Retorna "" para null, undefined, e 0 também */
-function numStr(v: number | undefined | null): string {
-  if (v === null || v === undefined || v === 0) return "";
-  return String(v);
-}
+const bmo = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+const ns = (v: number | undefined | null): string => (v === null || v === undefined || v === 0 ? "" : String(v));
 
 export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: Props) {
-  const mostraArea = UNIDADES_COM_AREA.includes(insumo.unidade);
-  const temArea = mostraArea && insumo.altura && insumo.largura && insumo.altura > 0 && insumo.largura > 0;
-  const completo = insumo.nome.trim().length > 0 && (insumo.usaPacote ? insumo.quantidadePacote > 0 && insumo.valorPacote > 0 : insumo.custoUnitario > 0);
+  const ehArea = UNIDADES_COM_AREA.includes(insumo.unidade);
+  const ehLinear = UNIDADES_LINEARES.includes(insumo.unidade);
 
-  const [qtdStr, setQtdStr] = useState(numStr(insumo.quantidade));
-  const [alturaStr, setAlturaStr] = useState(numStr(insumo.altura));
-  const [larguraStr, setLarguraStr] = useState(numStr(insumo.largura));
-  const [custoStr, setCustoStr] = useState(numStr(insumo.custoUnitario));
-  const [qtdPacoteStr, setQtdPacoteStr] = useState(numStr(insumo.quantidadePacote));
-  const [valorPacoteStr, setValorPacoteStr] = useState(numStr(insumo.valorPacote));
+  const [valorPagoStr, setValorPagoStr] = useState(ns(insumo.valorPago));
+  const [altCompraStr, setAltCompraStr] = useState(ns(insumo.alturaCompra));
+  const [larCompraStr, setLarCompraStr] = useState(ns(insumo.larguraCompra));
+  const [compCompraStr, setCompCompraStr] = useState(ns(insumo.comprimentoCompra));
+  const [qtdCompraStr, setQtdCompraStr] = useState(ns(insumo.quantidadeCompra));
+  const [altUsoStr, setAltUsoStr] = useState(ns(insumo.alturaUso));
+  const [larUsoStr, setLarUsoStr] = useState(ns(insumo.larguraUso));
+  const [compUsoStr, setCompUsoStr] = useState(ns(insumo.comprimentoUso));
+  const [qtdUsoStr, setQtdUsoStr] = useState(ns(insumo.quantidadeUso));
 
   useEffect(() => {
-    setQtdStr(numStr(insumo.quantidade));
-    setAlturaStr(numStr(insumo.altura));
-    setLarguraStr(numStr(insumo.largura));
-    setCustoStr(numStr(insumo.custoUnitario));
-    setQtdPacoteStr(numStr(insumo.quantidadePacote));
-    setValorPacoteStr(numStr(insumo.valorPacote));
-  }, [insumo.quantidade, insumo.altura, insumo.largura, insumo.custoUnitario, insumo.quantidadePacote, insumo.valorPacote]);
+    setValorPagoStr(ns(insumo.valorPago));
+    setAltCompraStr(ns(insumo.alturaCompra)); setLarCompraStr(ns(insumo.larguraCompra));
+    setCompCompraStr(ns(insumo.comprimentoCompra)); setQtdCompraStr(ns(insumo.quantidadeCompra));
+    setAltUsoStr(ns(insumo.alturaUso)); setLarUsoStr(ns(insumo.larguraUso));
+    setCompUsoStr(ns(insumo.comprimentoUso)); setQtdUsoStr(ns(insumo.quantidadeUso));
+  }, [insumo]);
 
-  const toNum = (raw: string): number => {
-    const cleaned = raw.replace(",", ".").trim();
-    if (cleaned === "" || cleaned === ".") return 0;
-    return Number(cleaned) || 0;
-  };
+  const tn = (r: string) => { const c = r.replace(",", ".").trim(); return c === "" || c === "." ? 0 : Number(c) || 0; };
+  const custo = custoInsumo(insumo);
+  const completo = insumo.nome.trim() && insumo.valorPago > 0;
 
-  const inputClass = `w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${readonly ? "opacity-60 cursor-default" : ""}`;
-
-  // Label adaptativo para custo
-  const custoLabel = temArea ? "Custo total da peça (R$)" : "Custo por unidade (R$)";
-  const custoPlaceholder = temArea ? "Exemplo 35" : "Exemplo 0,80";
+  const iCls = `w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-1.5 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${readonly ? "opacity-60 cursor-default" : ""}`;
 
   return (
     <div className={`bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden ${completo ? "border-l-[3px] border-l-[var(--color-success)]" : ""}`}>
-      {/* Barra verde horizontal quando completo */}
       {completo && !readonly && (
         <div className="bg-[var(--color-success)]/10 border-b border-[var(--color-success)]/20 px-4 py-1 flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -63,7 +53,8 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
         </div>
       )}
 
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-4">
+        {/* Nome */}
         <div className="flex items-center gap-2">
           <input type="text" value={insumo.nome}
             onChange={(e) => !readonly && onChange({ nome: e.target.value })}
@@ -77,84 +68,86 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">{mostraArea ? "Altura" : "Qtd"}</label>
-            <input type="text" inputMode="decimal"
-              value={mostraArea ? alturaStr : qtdStr}
-              onChange={(e) => {
-                if (readonly) return;
-                if (mostraArea) { setAlturaStr(e.target.value); onChange({ altura: toNum(e.target.value) || undefined }); }
-                else { setQtdStr(e.target.value); onChange({ quantidade: toNum(e.target.value) }); }
-              }}
-              readOnly={readonly}
-              placeholder={mostraArea ? "Exemplo 50" : "Exemplo 1"}
-              className={inputClass} />
+        {/* 💰 Card Valor da Compra */}
+        <div className="bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">💰</span>
+            <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Valor da compra</span>
           </div>
 
-          {mostraArea && (
-            <div>
-              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Largura</label>
-              <input type="text" inputMode="decimal"
-                value={larguraStr}
-                onChange={(e) => { if (readonly) return; setLarguraStr(e.target.value); onChange({ largura: toNum(e.target.value) || undefined }); }}
-                readOnly={readonly}
-                placeholder="Exemplo 35"
-                className={inputClass} />
-            </div>
-          )}
+          {/* Valor pago */}
+          <div>
+            <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Valor que paguei (R$)</label>
+            <input type="text" inputMode="decimal" value={valorPagoStr}
+              onChange={(e) => { if (readonly) return; setValorPagoStr(e.target.value); onChange({ valorPago: tn(e.target.value) }); }}
+              readOnly={readonly} placeholder="Exemplo 37,50"
+              className={`${iCls} w-44`} />
+          </div>
 
+          {/* Unidade */}
           <div>
             <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Unidade</label>
             <select value={insumo.unidade}
               onChange={(e) => !readonly && onChange({ unidade: e.target.value as UnidadeMedida })}
               disabled={readonly}
-              className={`w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white focus:outline-none ${readonly ? "opacity-60 cursor-default" : "focus:border-[var(--color-border-active)]"}`}>
+              className={`w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none ${readonly ? "opacity-60 cursor-default" : "focus:border-[var(--color-border-active)]"}`}>
               {Object.entries(UNIDADES_MEDIDA).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
             </select>
           </div>
-        </div>
 
-        {/* Custo */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-[10px] text-[var(--color-text-muted)]">Modo:</label>
-            <button onClick={() => !readonly && onChange({ usaPacote: false })}
-              className={`text-[11px] px-2 py-0.5 rounded-md ${!insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"} ${readonly ? "cursor-default" : ""}`}>Direto</button>
-            <button onClick={() => !readonly && onChange({ usaPacote: true })}
-              className={`text-[11px] px-2 py-0.5 rounded-md ${insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"} ${readonly ? "cursor-default" : ""}`}>Pacote</button>
+          {/* Dimensões da COMPRA */}
+          <div className="border-t border-[var(--color-border-subtle)] pt-3">
+            <p className="text-[10px] text-[var(--color-text-muted)] mb-2 font-medium">📦 Dimensões do que COMPREI</p>
+
+            {ehArea ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Altura</label><input type="text" inputMode="decimal" value={altCompraStr}
+                  onChange={(e) => { if (readonly) return; setAltCompraStr(e.target.value); onChange({ alturaCompra: tn(e.target.value) || undefined }); }}
+                  readOnly={readonly} placeholder="Exemplo 100" className={iCls} /></div>
+                <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Largura</label><input type="text" inputMode="decimal" value={larCompraStr}
+                  onChange={(e) => { if (readonly) return; setLarCompraStr(e.target.value); onChange({ larguraCompra: tn(e.target.value) || undefined }); }}
+                  readOnly={readonly} placeholder="Exemplo 50" className={iCls} /></div>
+              </div>
+            ) : ehLinear ? (
+              <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Comprimento</label><input type="text" inputMode="decimal" value={compCompraStr}
+                onChange={(e) => { if (readonly) return; setCompCompraStr(e.target.value); onChange({ comprimentoCompra: tn(e.target.value) || undefined }); }}
+                readOnly={readonly} placeholder="Exemplo 200" className={iCls} /></div>
+            ) : (
+              <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Quantidade</label><input type="text" inputMode="decimal" value={qtdCompraStr}
+                onChange={(e) => { if (readonly) return; setQtdCompraStr(e.target.value); onChange({ quantidadeCompra: tn(e.target.value) || undefined }); }}
+                readOnly={readonly} placeholder="Exemplo 1" className={iCls} /></div>
+            )}
           </div>
 
-          {insumo.usaPacote ? (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Qtd no pacote</label>
-                <input type="text" inputMode="decimal" value={qtdPacoteStr}
-                  onChange={(e) => { if (readonly) return; setQtdPacoteStr(e.target.value); onChange({ quantidadePacote: toNum(e.target.value) }); }}
-                  readOnly={readonly} placeholder="Exemplo 50" className={inputClass} />
+          {/* Dimensões do USO */}
+          <div className="border-t border-[var(--color-border-subtle)] pt-3">
+            <p className="text-[10px] text-[var(--color-text-muted)] mb-2 font-medium">✂️ Quanto USEI no produto</p>
+
+            {ehArea ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Altura</label><input type="text" inputMode="decimal" value={altUsoStr}
+                  onChange={(e) => { if (readonly) return; setAltUsoStr(e.target.value); onChange({ alturaUso: tn(e.target.value) || undefined }); }}
+                  readOnly={readonly} placeholder="Exemplo 50" className={iCls} /></div>
+                <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Largura</label><input type="text" inputMode="decimal" value={larUsoStr}
+                  onChange={(e) => { if (readonly) return; setLarUsoStr(e.target.value); onChange({ larguraUso: tn(e.target.value) || undefined }); }}
+                  readOnly={readonly} placeholder="Exemplo 35" className={iCls} /></div>
               </div>
-              <div>
-                <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Valor pago (R$)</label>
-                <input type="text" inputMode="decimal" value={valorPacoteStr}
-                  onChange={(e) => { if (readonly) return; setValorPacoteStr(e.target.value); onChange({ valorPacote: toNum(e.target.value) }); }}
-                  readOnly={readonly} placeholder="Exemplo 45" className={inputClass} />
-              </div>
-              {insumo.quantidadePacote > 0 && insumo.valorPacote > 0 && (
-                <div className="col-span-2"><p className="text-[10px] text-[var(--color-accent-start)]">= {formatBRL(insumo.valorPacote / insumo.quantidadePacote)}/{insumo.unidade}</p></div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">{custoLabel}</label>
-              <input type="text" inputMode="decimal" value={custoStr}
-                onChange={(e) => { if (readonly) return; setCustoStr(e.target.value); onChange({ custoUnitario: toNum(e.target.value) }); }}
-                readOnly={readonly} placeholder={custoPlaceholder}
-                className={`${inputClass} w-40`} />
-              {temArea && insumo.custoUnitario > 0 && (
-                <p className="text-[10px] text-[var(--color-accent-start)] mt-0.5">
-                  = {formatBRL(insumo.custoUnitario / (insumo.altura! * insumo.largura!))} por {insumo.unidade}
-                </p>
-              )}
+            ) : ehLinear ? (
+              <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Comprimento</label><input type="text" inputMode="decimal" value={compUsoStr}
+                onChange={(e) => { if (readonly) return; setCompUsoStr(e.target.value); onChange({ comprimentoUso: tn(e.target.value) || undefined }); }}
+                readOnly={readonly} placeholder="Exemplo 80" className={iCls} /></div>
+            ) : (
+              <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Quantidade</label><input type="text" inputMode="decimal" value={qtdUsoStr}
+                onChange={(e) => { if (readonly) return; setQtdUsoStr(e.target.value); onChange({ quantidadeUso: tn(e.target.value) || undefined }); }}
+                readOnly={readonly} placeholder="Exemplo 3" className={iCls} /></div>
+            )}
+          </div>
+
+          {/* Resultado */}
+          {custo.gt(0) && (
+            <div className="border-t border-[var(--color-border-subtle)] pt-3 flex justify-between items-center">
+              <span className="text-[10px] text-[var(--color-text-muted)]">Custo proporcional</span>
+              <span className="text-sm font-bold text-[var(--color-success)]">{bmo(custo.toNumber())}</span>
             </div>
           )}
         </div>

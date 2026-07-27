@@ -32,31 +32,54 @@ export function valorHoraPorMinuto(vh: ValorHora): Decimal {
 }
 
 // ═══════════════════════════════════════
-// CUSTO INSUMO (material) — com pacote fechado
+// CUSTO INSUMO — modelo "valor da compra"
 // ═══════════════════════════════════════
 
+/**
+ * Calcula o custo proporcional do insumo usado no produto.
+ *
+ * Lógica: (quantidade USADA / quantidade COMPRADA) × valor pago
+ *
+ * Área:    (alturaUso × larguraUso) / (alturaCompra × larguraCompra) × valorPago
+ * Linear:  comprimentoUso / comprimentoCompra × valorPago
+ * Peso/un: quantidadeUso / quantidadeCompra × valorPago
+ */
 export function custoInsumo(insumo: Insumo): Decimal {
-  let custoUnitario = new Decimal(insumo.custoUnitario);
+  const vp = new Decimal(insumo.valorPago);
+  if (vp.isZero()) return new Decimal(0);
 
-  if (insumo.usaPacote && insumo.quantidadePacote > 0) {
-    custoUnitario = new Decimal(insumo.valorPacote).div(insumo.quantidadePacote);
+  // Área (m², cm²)
+  if (
+    UNIDADES_COM_AREA.includes(insumo.unidade) &&
+    insumo.alturaCompra && insumo.larguraCompra &&
+    insumo.alturaUso && insumo.larguraUso &&
+    insumo.alturaCompra > 0 && insumo.larguraCompra > 0
+  ) {
+    const areaCompra = new Decimal(insumo.alturaCompra).times(insumo.larguraCompra);
+    const areaUso = new Decimal(insumo.alturaUso).times(insumo.larguraUso);
+    if (areaCompra.isZero()) return new Decimal(0);
+    return areaUso.div(areaCompra).times(vp);
   }
 
-  // Cálculo por área (m², cm²): custoUnitario é o custo TOTAL da peça
-  if (UNIDADES_COM_AREA.includes(insumo.unidade) && insumo.altura && insumo.largura && insumo.altura > 0 && insumo.largura > 0) {
-    // A área é altura × largura
-    const area = new Decimal(insumo.altura).times(insumo.largura);
-    // Se o usuário informou custo total da peça (ex: 50×35cm por R$35),
-    // o custo já é o total. Se for pacote, já dividiu.
-    // Se NÃO for pacote, o custoUnitario é o custo total da peça inteira
-    if (!insumo.usaPacote && insumo.custoUnitario > 0) {
-      return new Decimal(insumo.custoUnitario);
-    }
-    // Se for pacote, o custoUnitario já está por unidade de área
-    return area.times(custoUnitario);
+  // Linear (centímetros, metros)
+  if (
+    UNIDADES_LINEARES.includes(insumo.unidade) &&
+    insumo.comprimentoCompra && insumo.comprimentoUso &&
+    insumo.comprimentoCompra > 0
+  ) {
+    return new Decimal(insumo.comprimentoUso).div(insumo.comprimentoCompra).times(vp);
   }
 
-  return new Decimal(insumo.quantidade).times(custoUnitario);
+  // Peso / unidade
+  if (
+    insumo.quantidadeCompra && insumo.quantidadeUso &&
+    insumo.quantidadeCompra > 0
+  ) {
+    return new Decimal(insumo.quantidadeUso).div(insumo.quantidadeCompra).times(vp);
+  }
+
+  // Fallback: se não tem dimensões de uso, retorna o valor total pago
+  return vp;
 }
 
 // ═══════════════════════════════════════

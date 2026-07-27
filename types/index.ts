@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════
-// Meu Custo — Type Definitions v1.6
+// Meu Custo — Type Definitions v1.7
 // ═══════════════════════════════════════
 
 export type TipoProduto = "fisico" | "servico";
@@ -18,6 +18,7 @@ export const UNIDADES_MEDIDA: Record<UnidadeMedida, string> = {
 };
 
 export const UNIDADES_COM_AREA: UnidadeMedida[] = ["m2", "cm2"];
+export const UNIDADES_LINEARES: UnidadeMedida[] = ["metros", "centimetros"];
 
 export interface ValorHora {
   salario: number;
@@ -26,18 +27,30 @@ export interface ValorHora {
   horasMes: number;
 }
 
+// ═══════════════════════════════════════
+// INSUMO — novo modelo
+// ═══════════════════════════════════════
+
 export interface Insumo {
   id: string;
   nome: string;
-  quantidade: number;
   unidade: UnidadeMedida;
-  custoUnitario: number;
-  altura?: number;
-  largura?: number;
-  usaPacote: boolean;
-  quantidadePacote: number;
-  valorPacote: number;
   ordem: number;
+
+  // 💰 Card "Valor da compra"
+  valorPago: number;        // quanto pagou na peça/material inteiro
+
+  // Dimensões do que COMPROU
+  alturaCompra?: number;    // ex: 100 (cm) — altura da chapa comprada
+  larguraCompra?: number;   // ex: 50 (cm) — largura da chapa comprada
+  comprimentoCompra?: number; // para linear (cm ou m)
+  quantidadeCompra?: number;  // para kg, g, un
+
+  // Dimensões do que USOU no produto
+  alturaUso?: number;
+  larguraUso?: number;
+  comprimentoUso?: number;
+  quantidadeUso?: number;
 }
 
 export interface TempoTrabalho {

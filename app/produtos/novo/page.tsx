@@ -29,9 +29,8 @@ const INDICADOR_COR: Record<IndicadorSugestao, string> = {
 
 function novoInsumo(ordem: number): Insumo {
   return {
-    id: crypto.randomUUID(), nome: "", quantidade: 0,
-    unidade: "unidade" as UnidadeMedida, custoUnitario: 0,
-    usaPacote: false, quantidadePacote: 0, valorPacote: 0, ordem,
+    id: crypto.randomUUID(), nome: "",
+    unidade: "unidade" as UnidadeMedida, valorPago: 0, ordem,
   };
 }
 
@@ -40,7 +39,7 @@ function novoEquipamento(): EquipamentoEletrico {
 }
 
 function insumoCompleto(i: Insumo): boolean {
-  return i.nome.trim().length > 0 && (i.usaPacote ? i.quantidadePacote > 0 && i.valorPacote > 0 : i.custoUnitario > 0);
+  return i.nome.trim().length > 0 && i.valorPago > 0;
 }
 
 type Aba = "materiais" | "tempo" | "equipamentos";
