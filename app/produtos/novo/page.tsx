@@ -10,21 +10,14 @@ import { EquipamentoRow } from "@/components/EquipamentoRow";
 import { BottomNav } from "@/components/BottomNav";
 import { sanitizeAndTrim } from "@/lib/sanitize";
 import {
-  custoTotalDireto,
-  margemBruta,
-  calcularPrecoSugerido,
-  indicadorSugestao,
-  tempoTotalMinutos,
-  lucroBruto,
+  custoInsumo, custoMaoDeObra, custoEquipamento,
+  custoTotalDireto, margemBruta, calcularPrecoSugerido,
+  indicadorSugestao, tempoTotalMinutos, lucroBruto,
 } from "@/lib/calculos";
 import { formatBRL, formatPercent, formatTempo } from "@/lib/formatters";
 import type {
-  Produto,
-  Insumo,
-  UnidadeMedida,
-  TipoProduto,
-  EquipamentoEletrico,
-  IndicadorSugestao,
+  Produto, Insumo, UnidadeMedida, TipoProduto,
+  EquipamentoEletrico, IndicadorSugestao,
 } from "@/types";
 import Link from "next/link";
 
@@ -38,7 +31,7 @@ function novoInsumo(ordem: number): Insumo {
   return {
     id: crypto.randomUUID(),
     nome: "",
-    quantidade: 1,
+    quantidade: 0,
     unidade: "unidade" as UnidadeMedida,
     custoUnitario: 0,
     usaPacote: false,
@@ -52,6 +45,8 @@ function novoEquipamento(): EquipamentoEletrico {
   return { id: crypto.randomUUID(), nome: "", potenciaWatts: 0, tempoUsoMinutos: 0, custoKwh: 0.85 };
 }
 
+type Aba = "materiais" | "tempo" | "equipamentos";
+
 export default function NovoProdutoPage() {
   const router = useRouter();
   const { db, addProduto } = useLocalDB();
@@ -61,14 +56,16 @@ export default function NovoProdutoPage() {
   const [precoVenda, setPrecoVenda] = useState("");
   const [categoria, setCategoria] = useState("");
   const [imagemDataUrl, setImagemDataUrl] = useState("");
-  const [insumos, setInsumos] = useState<Insumo[]>([novoInsumo(0)]);
+  const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [tempoMinutos, setTempoMinutos] = useState(0);
   const [equipamentos, setEquipamentos] = useState<EquipamentoEletrico[]>([]);
+  const [aba, setAba] = useState<Aba>("materiais");
 
-  const addInsumo = () => setInsumos((p) => [...p, novoInsumo(p.length)]);
+  // NOVO em cima (unshift)
+  const addInsumo = () => setInsumos((p) => [novoInsumo(0), ...p]);
   const removeInsumo = (id: string) => setInsumos((p) => p.filter((i) => i.id !== id));
   const updateInsumo = (id: string, u: Partial<Insumo>) => setInsumos((p) => p.map((i) => (i.id === id ? { ...i, ...u } : i)));
-  const addEquipamento = () => setEquipamentos((p) => [...p, novoEquipamento()]);
+  const addEquipamento = () => setEquipamentos((p) => [novoEquipamento(), ...p]);
   const removeEquipamento = (id: string) => setEquipamentos((p) => p.filter((e) => e.id !== id));
   const updateEquipamento = (id: string, u: Partial<EquipamentoEletrico>) => setEquipamentos((p) => p.map((e) => (e.id === id ? { ...e, ...u } : e)));
 
@@ -82,9 +79,7 @@ export default function NovoProdutoPage() {
   const handleSave = () => {
     if (!nome.trim()) return;
     const produto: Produto = {
-      id: crypto.randomUUID(),
-      nome: sanitizeAndTrim(nome),
-      tipo,
+      id: crypto.randomUUID(), nome: sanitizeAndTrim(nome), tipo,
       precoVenda: preco || null,
       precoSugerido: preco ? undefined : precoSugerido,
       indicadorSugestao: preco ? undefined : indicador,
@@ -101,6 +96,12 @@ export default function NovoProdutoPage() {
     router.push("/");
   };
 
+  const ABAS: { key: Aba; label: string; count: number }[] = [
+    { key: "materiais", label: "Materiais", count: insumos.length },
+    { key: "tempo", label: "Tempo", count: tempoMinutos > 0 ? 1 : 0 },
+    { key: "equipamentos", label: "Equipamentos", count: equipamentos.length },
+  ];
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-primary)] pb-24">
       <header className="sticky top-0 z-10 bg-[var(--color-bg-primary)]/80 backdrop-blur-lg border-b border-[var(--color-border-subtle)]">
@@ -114,6 +115,7 @@ export default function NovoProdutoPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Dados básicos */}
         <section className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Nome do produto *</label>
@@ -129,8 +131,8 @@ export default function NovoProdutoPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Preço de venda <span className="text-[var(--color-text-muted)]">(opcional)</span></label>
-              <input type="number" inputMode="decimal" value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} placeholder="Deixe em branco" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Preço <span className="text-[var(--color-text-muted)]">(opcional)</span></label>
+              <input type="number" inputMode="decimal" value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} placeholder="Sugestão automática" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
             </div>
           </div>
           <div>
@@ -141,47 +143,146 @@ export default function NovoProdutoPage() {
 
         <section><ImageUploader onImageReady={setImagemDataUrl} currentImage={imagemDataUrl} /></section>
 
-        {/* Insumos (materiais) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Materiais</h2>
-            <button onClick={addInsumo} disabled={insumos.length >= 30} className="text-xs text-[var(--color-accent-start)] font-medium">+ Adicionar</button>
-          </div>
-          <div className="space-y-2">
-            {insumos.map((i) => <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)} onRemove={() => removeInsumo(i.id)} canRemove={insumos.length > 1} />)}
-          </div>
-        </section>
+        {/* ═══ ABAS ═══ */}
+        <div className="flex gap-1 bg-[var(--color-bg-card)] rounded-xl p-1">
+          {ABAS.map(({ key, label, count }) => (
+            <button
+              key={key}
+              onClick={() => setAba(key)}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
+                aba === key ? "gradient-bg text-white" : "text-[var(--color-text-muted)] hover:text-white"
+              }`}
+            >
+              {label}
+              {count > 0 && (
+                <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${aba === key ? "bg-white/20" : "bg-[var(--color-border-subtle)]"}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-        {/* Tempo de trabalho */}
-        <section><TempoTrabalhoCard minutos={tempoMinutos} onChange={setTempoMinutos} /></section>
+        {/* Conteúdo da aba */}
+        {aba === "materiais" && (
+          <section className="space-y-2">
+            {insumos.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum material adicionado</p>
+            )}
+            {insumos.map((i) => (
+              <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)} onRemove={() => removeInsumo(i.id)} canRemove={true} />
+            ))}
+          </section>
+        )}
 
-        {/* Equipamentos elétricos */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Equipamentos</h2>
-            <button onClick={addEquipamento} className="text-xs text-[var(--color-accent-start)] font-medium">+ Adicionar</button>
-          </div>
-          <div className="space-y-2">
-            {equipamentos.map((eq) => <EquipamentoRow key={eq.id} eq={eq} onChange={(u) => updateEquipamento(eq.id, u)} onRemove={() => removeEquipamento(eq.id)} canRemove={true} />)}
-          </div>
-        </section>
+        {aba === "tempo" && (
+          <section><TempoTrabalhoCard minutos={tempoMinutos} onChange={setTempoMinutos} /></section>
+        )}
 
-        {/* Preview */}
-        {custo.gt(0) && (
-          <section className="glass rounded-2xl p-5 space-y-3 animate-fade-in">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Prévia</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-[var(--color-text-muted)]">Custo total</p><p className="text-white font-semibold">{formatBRL(custo)}</p></div>
-              <div><p className="text-[var(--color-text-muted)]">Tempo total</p><p className="text-white font-semibold">{formatTempo(totalMinutos)}</p></div>
+        {aba === "equipamentos" && (
+          <section className="space-y-2">
+            {equipamentos.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum equipamento adicionado</p>
+            )}
+            {equipamentos.map((eq) => (
+              <EquipamentoRow key={eq.id} eq={eq} onChange={(u) => updateEquipamento(eq.id, u)} onRemove={() => removeEquipamento(eq.id)} canRemove={true} />
+            ))}
+          </section>
+        )}
+
+        {/* Botão flutuante de adicionar (baseado na aba ativa) */}
+        <div className="fixed bottom-20 right-4 z-40 md:bottom-6">
+          <button
+            onClick={() => {
+              if (aba === "materiais") addInsumo();
+              else if (aba === "equipamentos") addEquipamento();
+            }}
+            className={`w-14 h-14 rounded-full gradient-bg text-white shadow-lg flex items-center justify-center hover:opacity-90 transition-all active:scale-95 ${
+              aba === "tempo" ? "hidden" : ""
+            }`}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ═══ PRÉVIA DISCRIMINADA ═══ */}
+        {(insumos.some(i => i.nome.trim()) || equipamentos.some(e => e.nome.trim()) || tempoMinutos > 0) && (
+          <section className="glass rounded-2xl p-5 space-y-4 animate-fade-in">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Prévia Detalhada</h2>
+
+            {/* Materiais */}
+            {insumos.filter(i => i.nome.trim()).length > 0 && (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">📦 Materiais</p>
+                <div className="space-y-1">
+                  {insumos.filter(i => i.nome.trim()).map((i) => {
+                    const ci = custoInsumo(i);
+                    return (
+                      <div key={i.id} className="flex justify-between text-sm">
+                        <span className="text-[var(--color-text-secondary)] truncate mr-2">{i.nome}</span>
+                        <span className="text-white font-medium whitespace-nowrap">{formatBRL(ci)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Mão de obra */}
+            {tempoMinutos > 0 && db.valorHora && (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">👷 Mão de obra</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[var(--color-text-secondary)]">{formatTempo(tempoMinutos)}</span>
+                  <span className="text-white font-medium">{formatBRL(custoMaoDeObra(tempo, db.valorHora))}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Equipamentos */}
+            {equipamentos.filter(e => e.nome.trim()).length > 0 && (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-2 font-medium">⚡ Equipamentos</p>
+                <div className="space-y-1">
+                  {equipamentos.filter(e => e.nome.trim()).map((eq) => {
+                    const ce = custoEquipamento(eq);
+                    return (
+                      <div key={eq.id} className="flex justify-between text-sm">
+                        <span className="text-[var(--color-text-secondary)] truncate mr-2">{eq.nome}</span>
+                        <span className="text-white font-medium whitespace-nowrap">{formatBRL(ce)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Separador */}
+            <div className="border-t border-[var(--color-border-subtle)]" />
+
+            {/* Total */}
+            <div className="flex justify-between">
+              <span className="text-sm font-medium text-white">Custo total</span>
+              <span className="text-sm font-bold text-white">{formatBRL(custo)}</span>
+            </div>
+            <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
+              <span>Tempo total</span>
+              <span>{formatTempo(totalMinutos)}</span>
+            </div>
+
+            {/* Preço sugerido ou margem */}
+            <div className="border-t border-[var(--color-border-subtle)] pt-3">
               {preco ? (
-                <>
-                  <div><p className="text-[var(--color-text-muted)]">Lucro bruto</p><p className="text-white font-semibold">{formatBRL(lucroBruto(preco, custo))}</p></div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><p className="text-[var(--color-text-muted)]">Lucro</p><p className="text-white font-semibold">{formatBRL(lucroBruto(preco, custo))}</p></div>
                   <div><p className="text-[var(--color-text-muted)]">Margem bruta</p><p className="text-white font-semibold">{formatPercent(margemBruta(preco, custo))}</p></div>
-                </>
+                </div>
               ) : (
-                <div className="col-span-2">
-                  <p className="text-[var(--color-text-muted)] text-xs">Preço sugerido (markup 50%)</p>
-                  <p className={`text-2xl font-bold ${INDICADOR_COR[indicador]}`}>{formatBRL(precoSugerido)}</p>
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)]">Preço sugerido (markup 50%)</p>
+                  <p className={`text-xl font-bold ${INDICADOR_COR[indicador]}`}>{formatBRL(precoSugerido)}</p>
                   <p className={`text-xs ${INDICADOR_COR[indicador]}`}>
                     {indicador === "verde" ? "🟢 Margem excelente" : indicador === "amarelo" ? "🟡 Margem razoável" : "🔴 Margem baixa — revisar"}
                   </p>
@@ -191,6 +292,7 @@ export default function NovoProdutoPage() {
           </section>
         )}
       </main>
+
       <BottomNav />
     </div>
   );

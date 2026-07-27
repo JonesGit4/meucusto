@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Insumo, UnidadeMedida } from "@/types";
 import { UNIDADES_MEDIDA, UNIDADES_COM_AREA } from "@/types";
 
@@ -16,7 +15,6 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
 
   return (
     <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl p-4 space-y-3">
-      {/* Nome + Remove */}
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -34,7 +32,6 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
         )}
       </div>
 
-      {/* Quantidade + Unidade */}
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">
@@ -42,13 +39,14 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
           </label>
           <input
             type="number" inputMode="decimal"
-            value={mostraArea ? (insumo.altura ?? "") : insumo.quantidade}
-            onChange={(e) =>
+            value={mostraArea ? (insumo.altura || "") : (insumo.quantidade || "")}
+            onChange={(e) => {
+              const v = e.target.value;
               mostraArea
-                ? onChange({ altura: Number(e.target.value) || undefined })
-                : onChange({ quantidade: Number(e.target.value) || 1 })
-            }
-            placeholder={mostraArea ? "50" : "1"}
+                ? onChange({ altura: v ? Number(v) : undefined })
+                : onChange({ quantidade: v ? Number(v) : 0 });
+            }}
+            placeholder={mostraArea ? "50" : "0"}
             className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]"
           />
         </div>
@@ -58,8 +56,8 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
             <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Largura</label>
             <input
               type="number" inputMode="decimal"
-              value={insumo.largura ?? ""}
-              onChange={(e) => onChange({ largura: Number(e.target.value) || undefined })}
+              value={insumo.largura || ""}
+              onChange={(e) => onChange({ largura: e.target.value ? Number(e.target.value) : undefined })}
               placeholder="30"
               className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]"
             />
@@ -80,50 +78,40 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
         </div>
       </div>
 
-      {/* Custo — modo normal OU pacote fechado */}
+      {/* Custo — normal ou pacote fechado */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <label className="text-[10px] text-[var(--color-text-muted)]">Modo de custo:</label>
-          <button
-            onClick={() => onChange({ usaPacote: false })}
-            className={`text-[11px] px-2 py-0.5 rounded-md ${!insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"}`}
-          >
-            Custo por unidade
+          <label className="text-[10px] text-[var(--color-text-muted)]">Modo:</label>
+          <button onClick={() => onChange({ usaPacote: false })}
+            className={`text-[11px] px-2 py-0.5 rounded-md ${!insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"}`}>
+            Custo/un
           </button>
-          <button
-            onClick={() => onChange({ usaPacote: true })}
-            className={`text-[11px] px-2 py-0.5 rounded-md ${insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"}`}
-          >
-            Pacote fechado
+          <button onClick={() => onChange({ usaPacote: true })}
+            className={`text-[11px] px-2 py-0.5 rounded-md ${insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"}`}>
+            Pacote
           </button>
         </div>
 
         {insumo.usaPacote ? (
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Quantidade no pacote</label>
-              <input
-                type="number" inputMode="decimal"
+              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Qtd no pacote</label>
+              <input type="number" inputMode="decimal"
                 value={insumo.quantidadePacote || ""}
                 onChange={(e) => onChange({ quantidadePacote: Number(e.target.value) || 0 })}
-                placeholder="Ex: 50"
-                className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]"
-              />
+                placeholder="Ex: 50" className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
             </div>
             <div>
               <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Valor pago (R$)</label>
-              <input
-                type="number" inputMode="decimal"
+              <input type="number" inputMode="decimal"
                 value={insumo.valorPacote || ""}
                 onChange={(e) => onChange({ valorPacote: Number(e.target.value) || 0 })}
-                placeholder="Ex: 45"
-                className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]"
-              />
+                placeholder="Ex: 45" className="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
             </div>
             {insumo.quantidadePacote > 0 && insumo.valorPacote > 0 && (
               <div className="col-span-2">
                 <p className="text-[10px] text-[var(--color-accent-start)]">
-                  Custo unitário calculado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(insumo.valorPacote / insumo.quantidadePacote)}/{insumo.unidade}
+                  = {formatBRL(insumo.valorPacote / insumo.quantidadePacote)}/{insumo.unidade}
                 </p>
               </div>
             )}
@@ -131,16 +119,15 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove }: Props) {
         ) : (
           <div>
             <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Custo por unidade (R$)</label>
-            <input
-              type="number" inputMode="decimal"
+            <input type="number" inputMode="decimal"
               value={insumo.custoUnitario || ""}
               onChange={(e) => onChange({ custoUnitario: Number(e.target.value) || 0 })}
-              placeholder="R$ 80"
-              className="w-40 bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-3 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]"
-            />
+              placeholder="R$ 80" className="w-40 bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-3 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
           </div>
         )}
       </div>
     </div>
   );
 }
+
+function formatBRL(v: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); }
