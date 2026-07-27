@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Insumo, UnidadeMedida } from "@/types";
 import { UNIDADES_MEDIDA, UNIDADES_COM_AREA, UNIDADES_LINEARES } from "@/types";
 import { custoInsumo } from "@/lib/calculos";
@@ -15,10 +15,12 @@ interface Props {
 
 const bmo = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const ns = (v: number | undefined | null): string => (v === null || v === undefined || v === 0 ? "" : String(v));
+const tn = (r: string) => { const c = r.replace(",", ".").trim(); return c === "" || c === "." ? 0 : Number(c) || 0; };
 
 export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: Props) {
   const ehArea = UNIDADES_COM_AREA.includes(insumo.unidade);
   const ehLinear = UNIDADES_LINEARES.includes(insumo.unidade);
+  const unidadeUso = insumo.unidadeUso || insumo.unidade;
 
   const [valorPagoStr, setValorPagoStr] = useState(ns(insumo.valorPago));
   const [altCompraStr, setAltCompraStr] = useState(ns(insumo.alturaCompra));
@@ -38,11 +40,22 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
     setCompUsoStr(ns(insumo.comprimentoUso)); setQtdUsoStr(ns(insumo.quantidadeUso));
   }, [insumo]);
 
-  const tn = (r: string) => { const c = r.replace(",", ".").trim(); return c === "" || c === "." ? 0 : Number(c) || 0; };
+  // Formatar valor pago com 2 casas decimais ao sair
+  const handleValorBlur = useCallback(() => {
+    const v = tn(valorPagoStr);
+    if (v > 0) {
+      const formatted = v.toFixed(2);
+      setValorPagoStr(formatted.replace(".", ","));
+      onChange({ valorPago: v });
+    }
+  }, [valorPagoStr, onChange]);
+
   const custo = custoInsumo(insumo);
   const completo = insumo.nome.trim() && insumo.valorPago > 0;
-
   const iCls = `w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-1.5 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${readonly ? "opacity-60 cursor-default" : ""}`;
+
+  // Mostrar conversão se unidades diferem
+  const mostraConversao = insumo.unidadeUso && insumo.unidadeUso !== insumo.unidade;
 
   return (
     <div className={`bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden ${completo ? "border-l-[3px] border-l-[var(--color-success)]" : ""}`}>
@@ -75,18 +88,20 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
             <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Valor da compra</span>
           </div>
 
-          {/* Valor pago */}
+          {/* Valor pago com auto-formatação */}
           <div>
             <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Valor que paguei (R$)</label>
             <input type="text" inputMode="decimal" value={valorPagoStr}
               onChange={(e) => { if (readonly) return; setValorPagoStr(e.target.value); onChange({ valorPago: tn(e.target.value) }); }}
+              onBlur={handleValorBlur}
               readOnly={readonly} placeholder="Exemplo 37,50"
               className={`${iCls} w-44`} />
+            <p className="text-[9px] text-[var(--color-text-muted)] mt-0.5">Ao sair do campo, formata automático: 50 → 50,00</p>
           </div>
 
-          {/* Unidade */}
+          {/* Unidade de COMPRA */}
           <div>
-            <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Unidade</label>
+            <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Unidade de compra</label>
             <select value={insumo.unidade}
               onChange={(e) => !readonly && onChange({ unidade: e.target.value as UnidadeMedida })}
               disabled={readonly}
@@ -111,7 +126,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
             ) : ehLinear ? (
               <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Comprimento</label><input type="text" inputMode="decimal" value={compCompraStr}
                 onChange={(e) => { if (readonly) return; setCompCompraStr(e.target.value); onChange({ comprimentoCompra: tn(e.target.value) || undefined }); }}
-                readOnly={readonly} placeholder="Exemplo 200" className={iCls} /></div>
+                readOnly={readonly} placeholder="Exemplo 100" className={iCls} /></div>
             ) : (
               <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Quantidade</label><input type="text" inputMode="decimal" value={qtdCompraStr}
                 onChange={(e) => { if (readonly) return; setQtdCompraStr(e.target.value); onChange({ quantidadeCompra: tn(e.target.value) || undefined }); }}
@@ -119,9 +134,29 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
             )}
           </div>
 
-          {/* Dimensões do USO */}
+          {/* Unidade de USO + Dimensões */}
           <div className="border-t border-[var(--color-border-subtle)] pt-3">
             <p className="text-[10px] text-[var(--color-text-muted)] mb-2 font-medium">✂️ Quanto USEI no produto</p>
+
+            {/* Select de unidade de uso (apenas para linear e peso) */}
+            {(ehLinear || (!ehArea && !ehLinear)) && (
+              <div className="mb-2">
+                <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Unidade de uso</label>
+                <select value={unidadeUso}
+                  onChange={(e) => !readonly && onChange({ unidadeUso: e.target.value as UnidadeMedida })}
+                  disabled={readonly}
+                  className={`w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-1.5 text-sm text-white focus:outline-none ${readonly ? "opacity-60 cursor-default" : "focus:border-[var(--color-border-active)]"}`}>
+                  {Object.entries(UNIDADES_MEDIDA)
+                    .filter(([k]) => ehLinear ? UNIDADES_LINEARES.includes(k as UnidadeMedida) : !UNIDADES_COM_AREA.includes(k as UnidadeMedida) && !UNIDADES_LINEARES.includes(k as UnidadeMedida))
+                    .map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
+                </select>
+                {mostraConversao && (
+                  <p className="text-[9px] text-[var(--color-warning)] mt-0.5">
+                    Convertendo de {UNIDADES_MEDIDA[unidadeUso]} para {UNIDADES_MEDIDA[insumo.unidade]}
+                  </p>
+                )}
+              </div>
+            )}
 
             {ehArea ? (
               <div className="grid grid-cols-2 gap-2">
@@ -135,7 +170,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
             ) : ehLinear ? (
               <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Comprimento</label><input type="text" inputMode="decimal" value={compUsoStr}
                 onChange={(e) => { if (readonly) return; setCompUsoStr(e.target.value); onChange({ comprimentoUso: tn(e.target.value) || undefined }); }}
-                readOnly={readonly} placeholder="Exemplo 80" className={iCls} /></div>
+                readOnly={readonly} placeholder="Exemplo 10" className={iCls} /></div>
             ) : (
               <div><label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Quantidade</label><input type="text" inputMode="decimal" value={qtdUsoStr}
                 onChange={(e) => { if (readonly) return; setQtdUsoStr(e.target.value); onChange({ quantidadeUso: tn(e.target.value) || undefined }); }}

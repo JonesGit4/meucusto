@@ -11,7 +11,7 @@ import type {
   IndicadorSugestao,
   Classificacao,
 } from "@/types";
-import { UNIDADES_COM_AREA, UNIDADES_LINEARES } from "@/types";
+import { UNIDADES_COM_AREA, UNIDADES_LINEARES, FATORES_CONVERSAO } from "@/types";
 
 Decimal.set({ precision: 10, rounding: Decimal.ROUND_HALF_UP });
 
@@ -37,20 +37,27 @@ export function valorHoraPorMinuto(vh: ValorHora): Decimal {
 
 /**
  * Calcula o custo proporcional do insumo usado no produto.
- *
- * Lógica: (quantidade USADA / quantidade COMPRADA) × valor pago
- *
- * Área:    (alturaUso × larguraUso) / (alturaCompra × larguraCompra) × valorPago
- * Linear:  comprimentoUso / comprimentoCompra × valorPago
- * Peso/un: quantidadeUso / quantidadeCompra × valorPago
+ * Suporta unidades de compra e uso diferentes (ex: comprou metros, usa centímetros).
  */
 export function custoInsumo(insumo: Insumo): Decimal {
   const vp = new Decimal(insumo.valorPago);
   if (vp.isZero()) return new Decimal(0);
 
-  // Área (m², cm²)
+  const unidadeCompra = insumo.unidade;
+  const unidadeUso = insumo.unidadeUso || insumo.unidade;
+
+  // Fator de conversão se unidades forem diferentes
+  let fatorConversao = 1;
+  if (unidadeUso !== unidadeCompra) {
+    const mapa = FATORES_CONVERSAO[unidadeUso];
+    fatorConversao = mapa?.[unidadeCompra] || 1;
+  }
+
+  const fc = new Decimal(fatorConversao);
+
+  // Área
   if (
-    UNIDADES_COM_AREA.includes(insumo.unidade) &&
+    UNIDADES_COM_AREA.includes(unidadeCompra) &&
     insumo.alturaCompra && insumo.larguraCompra &&
     insumo.alturaUso && insumo.larguraUso &&
     insumo.alturaCompra > 0 && insumo.larguraCompra > 0
@@ -58,27 +65,26 @@ export function custoInsumo(insumo: Insumo): Decimal {
     const areaCompra = new Decimal(insumo.alturaCompra).times(insumo.larguraCompra);
     const areaUso = new Decimal(insumo.alturaUso).times(insumo.larguraUso);
     if (areaCompra.isZero()) return new Decimal(0);
-    return areaUso.div(areaCompra).times(vp);
+    return areaUso.div(areaCompra.times(fc)).times(vp);
   }
 
-  // Linear (centímetros, metros)
+  // Linear
   if (
-    UNIDADES_LINEARES.includes(insumo.unidade) &&
+    UNIDADES_LINEARES.includes(unidadeCompra) &&
     insumo.comprimentoCompra && insumo.comprimentoUso &&
     insumo.comprimentoCompra > 0
   ) {
-    return new Decimal(insumo.comprimentoUso).div(insumo.comprimentoCompra).times(vp);
+    const compUso = new Decimal(insumo.comprimentoUso);
+    const compCompra = new Decimal(insumo.comprimentoCompra).times(fc);
+    if (compCompra.isZero()) return new Decimal(0);
+    return compUso.div(compCompra).times(vp);
   }
 
   // Peso / unidade
-  if (
-    insumo.quantidadeCompra && insumo.quantidadeUso &&
-    insumo.quantidadeCompra > 0
-  ) {
-    return new Decimal(insumo.quantidadeUso).div(insumo.quantidadeCompra).times(vp);
+  if (insumo.quantidadeCompra && insumo.quantidadeUso && insumo.quantidadeCompra > 0) {
+    return new Decimal(insumo.quantidadeUso).div(new Decimal(insumo.quantidadeCompra).times(fc)).times(vp);
   }
 
-  // Fallback: se não tem dimensões de uso, retorna o valor total pago
   return vp;
 }
 

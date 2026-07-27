@@ -30,21 +30,21 @@ export interface ValorHora {
 // ═══════════════════════════════════════
 // INSUMO — novo modelo
 // ═══════════════════════════════════════
-
 export interface Insumo {
   id: string;
   nome: string;
   unidade: UnidadeMedida;
+  unidadeUso?: UnidadeMedida; // pode ser diferente da unidade de compra (ex: comprou metros, usa centimetros)
   ordem: number;
 
   // 💰 Card "Valor da compra"
-  valorPago: number;        // quanto pagou na peça/material inteiro
+  valorPago: number;
 
   // Dimensões do que COMPROU
-  alturaCompra?: number;    // ex: 100 (cm) — altura da chapa comprada
-  larguraCompra?: number;   // ex: 50 (cm) — largura da chapa comprada
-  comprimentoCompra?: number; // para linear (cm ou m)
-  quantidadeCompra?: number;  // para kg, g, un
+  alturaCompra?: number;
+  larguraCompra?: number;
+  comprimentoCompra?: number;
+  quantidadeCompra?: number;
 
   // Dimensões do que USOU no produto
   alturaUso?: number;
@@ -52,6 +52,16 @@ export interface Insumo {
   comprimentoUso?: number;
   quantidadeUso?: number;
 }
+
+/** Fatores de conversão entre unidades compatíveis */
+export const FATORES_CONVERSAO: Record<string, Record<string, number>> = {
+  metros:     { centimetros: 100 },
+  centimetros:{ metros: 0.01 },
+  m2:         { cm2: 10000 },
+  cm2:        { m2: 0.0001 },
+  kg:         { g: 1000 },
+  g:          { kg: 0.001 },
+};
 
 export interface TempoTrabalho {
   minutos: number;
