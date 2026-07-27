@@ -24,7 +24,7 @@ const INDICADOR_COR: Record<IndicadorSugestao, string> = {
 };
 
 function novoInsumo(ordem: number): Insumo {
-  return { id: crypto.randomUUID(), nome: "", quantidade: 1, unidade: "unidade" as UnidadeMedida, custoUnitario: 0, usaPacote: false, quantidadePacote: 0, valorPacote: 0, ordem };
+  return { id: crypto.randomUUID(), nome: "", unidade: "unidade" as UnidadeMedida, valorPago: 0, ordem };
 }
 function novoEquipamento(): EquipamentoEletrico {
   return { id: crypto.randomUUID(), nome: "", potenciaWatts: 0, tempoUsoMinutos: 0, custoKwh: 0.85 };
