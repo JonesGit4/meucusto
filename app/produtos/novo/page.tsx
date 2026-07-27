@@ -5,18 +5,34 @@ import { useRouter } from "next/navigation";
 import { useLocalDB } from "@/hooks/useLocalDB";
 import { ImageUploader } from "@/components/ImageUploader";
 import { InsumoRow } from "@/components/InsumoRow";
+import { TempoTrabalhoCard } from "@/components/TempoTrabalhoCard";
+import { EquipamentoRow } from "@/components/EquipamentoRow";
 import { BottomNav } from "@/components/BottomNav";
 import { sanitizeAndTrim } from "@/lib/sanitize";
 import {
   custoTotalDireto,
   margemBruta,
-  margemLiquida,
+  calcularPrecoSugerido,
+  indicadorSugestao,
+  tempoTotalMinutos,
   lucroBruto,
-  tempoTotal,
 } from "@/lib/calculos";
 import { formatBRL, formatPercent, formatTempo } from "@/lib/formatters";
-import type { Produto, Insumo, UnidadeMedida, TipoProduto } from "@/types";
+import type {
+  Produto,
+  Insumo,
+  UnidadeMedida,
+  TipoProduto,
+  EquipamentoEletrico,
+  IndicadorSugestao,
+} from "@/types";
 import Link from "next/link";
+
+const INDICADOR_COR: Record<IndicadorSugestao, string> = {
+  verde: "text-[var(--color-success)]",
+  amarelo: "text-[var(--color-warning)]",
+  vermelho: "text-[var(--color-danger)]",
+};
 
 function novoInsumo(ordem: number): Insumo {
   return {
@@ -25,11 +41,15 @@ function novoInsumo(ordem: number): Insumo {
     quantidade: 1,
     unidade: "unidade" as UnidadeMedida,
     custoUnitario: 0,
-    altura: undefined,
-    largura: undefined,
-    tempoHoras: 0,
+    usaPacote: false,
+    quantidadePacote: 0,
+    valorPacote: 0,
     ordem,
   };
+}
+
+function novoEquipamento(): EquipamentoEletrico {
+  return { id: crypto.randomUUID(), nome: "", potenciaWatts: 0, tempoUsoMinutos: 0, custoKwh: 0.85 };
 }
 
 export default function NovoProdutoPage() {
@@ -42,213 +62,135 @@ export default function NovoProdutoPage() {
   const [categoria, setCategoria] = useState("");
   const [imagemDataUrl, setImagemDataUrl] = useState("");
   const [insumos, setInsumos] = useState<Insumo[]>([novoInsumo(0)]);
+  const [tempoMinutos, setTempoMinutos] = useState(0);
+  const [equipamentos, setEquipamentos] = useState<EquipamentoEletrico[]>([]);
 
-  const addInsumo = () =>
-    setInsumos((prev) => [...prev, novoInsumo(prev.length)]);
+  const addInsumo = () => setInsumos((p) => [...p, novoInsumo(p.length)]);
+  const removeInsumo = (id: string) => setInsumos((p) => p.filter((i) => i.id !== id));
+  const updateInsumo = (id: string, u: Partial<Insumo>) => setInsumos((p) => p.map((i) => (i.id === id ? { ...i, ...u } : i)));
+  const addEquipamento = () => setEquipamentos((p) => [...p, novoEquipamento()]);
+  const removeEquipamento = (id: string) => setEquipamentos((p) => p.filter((e) => e.id !== id));
+  const updateEquipamento = (id: string, u: Partial<EquipamentoEletrico>) => setEquipamentos((p) => p.map((e) => (e.id === id ? { ...e, ...u } : e)));
 
-  const removeInsumo = (id: string) =>
-    setInsumos((prev) => prev.filter((i) => i.id !== id));
-
-  const updateInsumo = (id: string, updates: Partial<Insumo>) =>
-    setInsumos((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...updates } : i))
-    );
-
-  // Cálculos em tempo real
-  const preco = Number(precoVenda) || 0;
-  const custo = custoTotalDireto(insumos, db.valorHora ?? undefined);
-  const bruta = margemBruta(preco, insumos, db.valorHora ?? undefined);
-  const { margem: liquida } = margemLiquida(
-    preco,
-    insumos,
-    db.valorHora ?? undefined
-  );
-  const lucro = lucroBruto(preco, insumos, db.valorHora ?? undefined);
-  const tempo = tempoTotal(insumos);
+  const tempo = { minutos: tempoMinutos };
+  const custo = custoTotalDireto(insumos, db.valorHora ?? undefined, tempo, equipamentos);
+  const preco = Number(precoVenda) || null;
+  const precoSugerido = calcularPrecoSugerido(custo);
+  const indicador = indicadorSugestao(custo, precoSugerido);
+  const totalMinutos = tempoTotalMinutos(tempo, equipamentos);
 
   const handleSave = () => {
-    if (!nome.trim() || !precoVenda) return;
-
+    if (!nome.trim()) return;
     const produto: Produto = {
       id: crypto.randomUUID(),
       nome: sanitizeAndTrim(nome),
       tipo,
-      precoVenda: Number(precoVenda),
+      precoVenda: preco || null,
+      precoSugerido: preco ? undefined : precoSugerido,
+      indicadorSugestao: preco ? undefined : indicador,
       categoria: categoria ? sanitizeAndTrim(categoria, 50) : undefined,
       imagemUrl: imagemDataUrl || undefined,
       insumos: insumos.filter((i) => i.nome.trim()),
+      tempoTrabalho: tempo,
+      equipamentos: equipamentos.filter((e) => e.nome.trim()),
       cenarios: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
     addProduto(produto);
     router.push("/");
   };
 
-  const isValid = nome.trim() && precoVenda && Number(precoVenda) > 0;
-
   return (
     <div className="min-h-screen bg-[var(--color-bg-primary)] pb-24">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-[var(--color-bg-primary)]/80 backdrop-blur-lg border-b border-[var(--color-border-subtle)]">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-[var(--color-text-secondary)] hover:text-white">
-              ←
-            </Link>
+            <Link href="/" className="text-[var(--color-text-secondary)] hover:text-white">←</Link>
             <h1 className="text-lg font-semibold">Novo Produto</h1>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={!isValid}
-            className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-          >
-            Salvar
-          </button>
+          <button onClick={handleSave} disabled={!nome.trim()} className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-40 hover:opacity-90">Salvar</button>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Dados básicos */}
         <section className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Nome do produto *
-            </label>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Bolsa de Couro Artesanal"
-              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] transition-colors"
-            />
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Nome do produto *</label>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Bolsa de Couro Artesanal" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Tipo *
-              </label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Tipo *</label>
               <div className="flex gap-2">
                 {(["fisico", "servico"] as TipoProduto[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTipo(t)}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                      tipo === t
-                        ? "gradient-bg text-white"
-                        : "bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"
-                    }`}
-                  >
-                    {t === "fisico" ? "Físico" : "Serviço"}
-                  </button>
+                  <button key={t} onClick={() => setTipo(t)} className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${tipo === t ? "gradient-bg text-white" : "bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"}`}>{t === "fisico" ? "Físico" : "Serviço"}</button>
                 ))}
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Preço de venda *
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={precoVenda}
-                onChange={(e) => setPrecoVenda(e.target.value)}
-                placeholder="R$ 300"
-                className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] transition-colors"
-              />
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Preço de venda <span className="text-[var(--color-text-muted)]">(opcional)</span></label>
+              <input type="number" inputMode="decimal" value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} placeholder="Deixe em branco" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
             </div>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-              Categoria
-            </label>
-            <input
-              type="text"
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              placeholder="Ex: Bolsas, Acessórios"
-              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] transition-colors"
-            />
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Categoria</label>
+            <input type="text" value={categoria} onChange={(e) => setCategoria(e.target.value)} placeholder="Ex: Bolsas" className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl px-4 py-3 text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)]" />
           </div>
         </section>
 
-        {/* Imagem */}
-        <section>
-          <ImageUploader
-            onImageReady={setImagemDataUrl}
-            currentImage={imagemDataUrl}
-          />
-        </section>
+        <section><ImageUploader onImageReady={setImagemDataUrl} currentImage={imagemDataUrl} /></section>
 
-        {/* Insumos */}
+        {/* Insumos (materiais) */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-              Insumos
-            </h2>
-            <button
-              onClick={addInsumo}
-              disabled={insumos.length >= 30}
-              className="text-xs text-[var(--color-accent-start)] hover:text-[var(--color-accent-end)] transition-colors font-medium"
-            >
-              + Adicionar
-            </button>
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Materiais</h2>
+            <button onClick={addInsumo} disabled={insumos.length >= 30} className="text-xs text-[var(--color-accent-start)] font-medium">+ Adicionar</button>
           </div>
-
           <div className="space-y-2">
-            {insumos.map((insumo) => (
-              <InsumoRow
-                key={insumo.id}
-                insumo={insumo}
-                onChange={(u) => updateInsumo(insumo.id, u)}
-                onRemove={() => removeInsumo(insumo.id)}
-                canRemove={insumos.length > 1}
-              />
-            ))}
+            {insumos.map((i) => <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)} onRemove={() => removeInsumo(i.id)} canRemove={insumos.length > 1} />)}
           </div>
         </section>
 
-        {/* Preview de margens */}
-        {preco > 0 && (
+        {/* Tempo de trabalho */}
+        <section><TempoTrabalhoCard minutos={tempoMinutos} onChange={setTempoMinutos} /></section>
+
+        {/* Equipamentos elétricos */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Equipamentos</h2>
+            <button onClick={addEquipamento} className="text-xs text-[var(--color-accent-start)] font-medium">+ Adicionar</button>
+          </div>
+          <div className="space-y-2">
+            {equipamentos.map((eq) => <EquipamentoRow key={eq.id} eq={eq} onChange={(u) => updateEquipamento(eq.id, u)} onRemove={() => removeEquipamento(eq.id)} canRemove={true} />)}
+          </div>
+        </section>
+
+        {/* Preview */}
+        {custo.gt(0) && (
           <section className="glass rounded-2xl p-5 space-y-3 animate-fade-in">
-            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-              Prévia
-            </h2>
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Prévia</h2>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-[var(--color-text-muted)]">Custo total</p>
-                <p className="text-white font-semibold">{formatBRL(custo)}</p>
-              </div>
-              <div>
-                <p className="text-[var(--color-text-muted)]">Lucro bruto</p>
-                <p className="text-white font-semibold">{formatBRL(lucro)}</p>
-              </div>
-              <div>
-                <p className="text-[var(--color-text-muted)]">Margem bruta</p>
-                <p className="text-white font-semibold">{formatPercent(bruta)}</p>
-              </div>
-              <div>
-                <p className="text-[var(--color-text-muted)]">Margem líquida</p>
-                <p className="text-white font-semibold">
-                  {formatPercent(liquida)}
-                  <span className="text-xs text-[var(--color-text-muted)] ml-1">
-                    sem rateio
-                  </span>
-                </p>
-              </div>
-              <div>
-                <p className="text-[var(--color-text-muted)]">Tempo total</p>
-                <p className="text-white font-semibold">{formatTempo(tempo)}</p>
-              </div>
+              <div><p className="text-[var(--color-text-muted)]">Custo total</p><p className="text-white font-semibold">{formatBRL(custo)}</p></div>
+              <div><p className="text-[var(--color-text-muted)]">Tempo total</p><p className="text-white font-semibold">{formatTempo(totalMinutos)}</p></div>
+              {preco ? (
+                <>
+                  <div><p className="text-[var(--color-text-muted)]">Lucro bruto</p><p className="text-white font-semibold">{formatBRL(lucroBruto(preco, custo))}</p></div>
+                  <div><p className="text-[var(--color-text-muted)]">Margem bruta</p><p className="text-white font-semibold">{formatPercent(margemBruta(preco, custo))}</p></div>
+                </>
+              ) : (
+                <div className="col-span-2">
+                  <p className="text-[var(--color-text-muted)] text-xs">Preço sugerido (markup 50%)</p>
+                  <p className={`text-2xl font-bold ${INDICADOR_COR[indicador]}`}>{formatBRL(precoSugerido)}</p>
+                  <p className={`text-xs ${INDICADOR_COR[indicador]}`}>
+                    {indicador === "verde" ? "🟢 Margem excelente" : indicador === "amarelo" ? "🟡 Margem razoável" : "🔴 Margem baixa — revisar"}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         )}
       </main>
-
       <BottomNav />
     </div>
   );

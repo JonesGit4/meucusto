@@ -1,10 +1,9 @@
 // ═══════════════════════════════════════
-// Meu Custo — Formatters (BRL, %, tempo)
+// Meu Custo — Formatters v1.2
 // ═══════════════════════════════════════
 
 import Decimal from "decimal.js";
 
-/** Formata valor decimal como moeda BRL */
 export function formatBRL(value: Decimal | number): string {
   const num = value instanceof Decimal ? value.toNumber() : value;
   return new Intl.NumberFormat("pt-BR", {
@@ -13,25 +12,21 @@ export function formatBRL(value: Decimal | number): string {
   }).format(num);
 }
 
-/** Formata percentual */
 export function formatPercent(value: Decimal | number, decimals = 1): string {
   const num = value instanceof Decimal ? value.toNumber() : value;
   return `${num.toFixed(decimals)}%`;
 }
 
-/** Formata horas decimais para "Xh Ymin" */
-export function formatTempo(horas: Decimal | number): string {
-  const h = horas instanceof Decimal ? horas.toNumber() : horas;
-  const horasInt = Math.floor(h);
-  const minutos = Math.round((h - horasInt) * 60);
-
-  if (horasInt === 0 && minutos === 0) return "0min";
-  if (horasInt === 0) return `${minutos}min`;
-  if (minutos === 0) return `${horasInt}h`;
-  return `${horasInt}h${minutos}min`;
+/** Formata minutos para exibição: "35 min" ou "190 min (3h10min)" */
+export function formatTempo(minutos: number): string {
+  if (minutos <= 0) return "0 min";
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h}h`;
+  return `${minutos} min (${h}h${m}min)`;
 }
 
-/** Formata número simples com 2 casas */
 export function formatDecimal(value: Decimal | number, decimals = 2): string {
   const num = value instanceof Decimal ? value.toNumber() : value;
   return num.toFixed(decimals);
