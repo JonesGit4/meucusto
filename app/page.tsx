@@ -13,7 +13,7 @@ import {
 } from "@/lib/calculos";
 
 export default function Home() {
-  const { db, loaded } = useLocalDB();
+  const { db, loaded, persist } = useLocalDB();
   const produtos = useMemo(() => db.produtos.filter((p) => !p.deletedAt), [db.produtos]);
   const temValorHora = !!db.valorHora;
 
@@ -53,6 +53,33 @@ export default function Home() {
                 📥 Exportar
               </button>
             )}
+            <label className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)] cursor-pointer"
+              title="Importar backup">
+              📤 Importar
+              <input type="file" accept=".json" className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    if (data.versao && data.produtos) {
+                      // Backup completo
+                      persist(data);
+                      window.location.reload();
+                    } else if (data.valorHora || data.produtos) {
+                      // Backup do exportBackup
+                      persist(data);
+                      window.location.reload();
+                    } else {
+                      alert('Arquivo inválido');
+                    }
+                  } catch {
+                    alert('Erro ao ler arquivo. Verifique se é um JSON válido.');
+                  }
+                }}
+              />
+            </label>
             {temValorHora ? (
             <Link href="/produtos/novo" className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90">+ Novo</Link>
           ) : (
