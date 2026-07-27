@@ -119,13 +119,24 @@ export default function NovoProdutoPage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-[var(--color-text-secondary)] hover:text-white">←</Link>
-            <h1 className="text-lg font-semibold">{saved ? "Produto salvo" : "Novo Produto"}</h1>
+            <h1 className="text-lg font-semibold">{saved ? "✅ Salvo" : "Novo Produto"}</h1>
           </div>
           <button onClick={handleSave} disabled={!nome.trim()} className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-40 hover:opacity-90">Salvar</button>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Bloqueio: sem Valor Hora */}
+        {!db.valorHora && !saved && (
+          <div className="glass rounded-2xl p-5 text-center space-y-3 border border-[var(--color-warning)]/30">
+            <p className="text-[var(--color-warning)] font-medium">⚡ Configure seu Valor Hora primeiro</p>
+            <p className="text-sm text-[var(--color-text-muted)]">É necessário para calcular a mão de obra</p>
+            <Link href="/valor-hora" className="gradient-bg text-white px-5 py-2 rounded-xl text-sm font-medium inline-block hover:opacity-90">
+              Configurar Agora
+            </Link>
+          </div>
+        )}
+
         {/* Dados básicos */}
         <section className="space-y-4">
           <input
@@ -266,8 +277,13 @@ export default function NovoProdutoPage() {
         {/* Conteúdo da aba (modo edição) */}
         {!saved && aba === "materiais" && (
           <section className="space-y-2">
+            <button onClick={addInsumo} disabled={insumos.length >= 30}
+              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[var(--color-border-subtle)] rounded-xl py-3 text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-accent-start)] hover:text-[var(--color-accent-start)] transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
+              Adicionar material
+            </button>
             {insumos.length === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)] text-center py-8">Nenhum material. Clique + para adicionar.</p>
+              <p className="text-sm text-[var(--color-text-muted)] text-center py-4">Nenhum material adicionado</p>
             )}
             {insumos.map((i) => (
               <InsumoRow key={i.id} insumo={i} onChange={(u) => updateInsumo(i.id, u)}

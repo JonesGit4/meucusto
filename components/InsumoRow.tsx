@@ -86,7 +86,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
                 }
               }}
               readOnly={readonly}
-              placeholder="0"
+              placeholder={mostraArea ? "Exemplo 50" : "Exemplo 1"}
               className={inputClass} />
           </div>
 
@@ -101,7 +101,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
                   onChange({ largura: toNum(e.target.value) || undefined });
                 }}
                 readOnly={readonly}
-                placeholder="0"
+                placeholder="Exemplo 30"
                 className={inputClass} />
             </div>
           )}
@@ -133,13 +133,13 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
                 <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Qtd no pacote</label>
                 <input type="text" inputMode="decimal" value={qtdPacoteStr}
                   onChange={(e) => { if (readonly) return; setQtdPacoteStr(e.target.value); onChange({ quantidadePacote: toNum(e.target.value) }); }}
-                  readOnly={readonly} placeholder="50" className={inputClass} />
+                  readOnly={readonly} placeholder="Exemplo 50" className={inputClass} />
               </div>
               <div>
                 <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Valor pago (R$)</label>
                 <input type="text" inputMode="decimal" value={valorPacoteStr}
                   onChange={(e) => { if (readonly) return; setValorPacoteStr(e.target.value); onChange({ valorPacote: toNum(e.target.value) }); }}
-                  readOnly={readonly} placeholder="45" className={inputClass} />
+                  readOnly={readonly} placeholder="Exemplo 45" className={inputClass} />
               </div>
               {insumo.quantidadePacote > 0 && insumo.valorPacote > 0 && (
                 <div className="col-span-2"><p className="text-[10px] text-[var(--color-accent-start)]">= {formatBRL(insumo.valorPacote / insumo.quantidadePacote)}/{insumo.unidade}</p></div>
@@ -150,7 +150,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
               <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Custo por unidade (R$)</label>
               <input type="text" inputMode="decimal" value={custoStr}
                 onChange={(e) => { if (readonly) return; setCustoStr(e.target.value); onChange({ custoUnitario: toNum(e.target.value) }); }}
-                readOnly={readonly} placeholder="0,80"
+                readOnly={readonly} placeholder="Exemplo 0,80"
                 className={`${inputClass} w-40`} />
             </div>
           )}
