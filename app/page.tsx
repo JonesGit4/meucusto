@@ -23,7 +23,7 @@ export default function Home() {
         const custo = custoTotalDireto(p.insumos, db.valorHora ?? undefined, p.tempoTrabalho, p.equipamentos);
         const preco = p.precoVenda ?? p.precoSugerido ?? 0;
         const { margem } = margemLiquida(preco, custo);
-        const mins = tempoTotalMinutos(p.tempoTrabalho, p.equipamentos);
+        const mins = tempoTotalMinutos(p.tempoTrabalho);
         const classificacao = classificarProduto(margem, mins);
         return { ...p, custo, margem, mins, classificacao, preco };
       }),

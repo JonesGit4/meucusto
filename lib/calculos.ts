@@ -169,19 +169,17 @@ export function margemLiquida(
 // PREÇO SUGERIDO (quando usuário não define)
 // ═══════════════════════════════════════
 
-const MARKUP_PADRAO = 1.5; // 50% de margem sugerida
+const MARKUP_PADRAO = 1.0; // Sem markup — mostrar custo real
 
 export function calcularPrecoSugerido(custoTotal: Decimal): number {
-  return custoTotal.times(MARKUP_PADRAO).toDecimalPlaces(2).toNumber();
+  return custoTotal.toDecimalPlaces(2).toNumber();
 }
 
-export function indicadorSugestao(custoTotal: Decimal, precoSugerido: number): IndicadorSugestao {
-  if (custoTotal.isZero()) return "vermelho";
-  const margem = new Decimal(precoSugerido).minus(custoTotal).div(precoSugerido).times(100);
-  const m = margem.toNumber();
-  if (m >= 40) return "verde";
-  if (m >= 20) return "amarelo";
-  return "vermelho";
+export function indicadorSugestao(custoTotal: Decimal, precoVenda: number): IndicadorSugestao {
+  if (custoTotal.isZero() || precoVenda <= 0) return "amarelo";
+  const margem = new Decimal(precoVenda).minus(custoTotal).div(precoVenda).times(100);
+  if (margem.gte(35)) return "verde";
+  return "amarelo";
 }
 
 // ═══════════════════════════════════════
@@ -207,13 +205,8 @@ export function classificarProduto(
 
 export function tempoTotalMinutos(
   tempo: TempoTrabalho,
-  equipamentos: EquipamentoEletrico[]
 ): number {
-  let total = tempo.minutos;
-  for (const eq of equipamentos) {
-    total += eq.tempoUsoMinutos;
-  }
-  return total;
+  return tempo.minutos;
 }
 
 // ═══════════════════════════════════════

@@ -80,8 +80,8 @@ export default function NovoProdutoPage() {
   const custo = custoTotalDireto(insumos, db.valorHora ?? undefined, tempo, equipamentos);
   const preco = Number(precoVenda.replace(",", ".")) || null;
   const precoSugerido = calcularPrecoSugerido(custo);
-  const indicador = indicadorSugestao(custo, precoSugerido);
-  const totalMinutos = tempoTotalMinutos(tempo, equipamentos);
+  const indicador = indicadorSugestao(custo, preco || 0);
+  const totalMinutos = tempoTotalMinutos(tempo);
 
   const handleSave = () => {
     if (!nome.trim()) return;
@@ -243,11 +243,10 @@ export default function NovoProdutoPage() {
                   <div><p className="text-[var(--color-text-muted)]">Margem bruta</p><p className="text-white font-semibold">{formatPercent(margemBruta(preco, custo))}</p></div>
                 </div>
               ) : (
-                <div>
-                  <p className="text-xs text-[var(--color-text-muted)]">Preço sugerido (markup 50%)</p>
-                  <p className={`text-xl font-bold ${INDICADOR_COR[indicador]}`}>{formatBRL(precoSugerido)}</p>
-                  <p className={`text-xs ${INDICADOR_COR[indicador]}`}>
-                    {indicador === "verde" ? "🟢 Margem excelente" : indicador === "amarelo" ? "🟡 Margem razoável" : "🔴 Margem baixa — revisar"}
+                <div className="bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/20 rounded-xl p-3">
+                  <p className="text-xs text-[var(--color-warning)]">⚠️ Defina o preço de venda acima para ver a margem</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    {indicador === "verde" ? "🟢 Margem ≥ 35%" : "🟡 Margem < 35%"}
                   </p>
                 </div>
               )}

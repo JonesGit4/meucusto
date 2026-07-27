@@ -68,7 +68,7 @@ export default function EditarProdutoPage({ params }: { params: Promise<{ id: st
   const preco = Number(precoVenda) || null;
   const precoSugerido = calcularPrecoSugerido(custo);
   const indicador = indicadorSugestao(custo, precoSugerido);
-  const totalMinutos = tempoTotalMinutos(tempo, equipamentos);
+  const totalMinutos = tempoTotalMinutos(tempo);
 
   const handleSave = () => {
     if (!nome.trim()) return;
