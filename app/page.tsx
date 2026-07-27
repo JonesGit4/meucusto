@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { BottomNav } from "@/components/BottomNav";
 import Link from "next/link";
 import { useMemo } from "react";
+import { exportBackup } from "@/lib/backup";
 import {
   custoTotalDireto, margemLiquida, classificarProduto, tempoTotalMinutos,
 } from "@/lib/calculos";
@@ -44,14 +45,23 @@ export default function Home() {
       <header className="sticky top-0 z-10 bg-[var(--color-bg-primary)]/80 backdrop-blur-lg border-b border-[var(--color-border-subtle)]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold"><span className="gradient-text">Meu Custo</span></h1>
-          {temValorHora ? (
+          <div className="flex items-center gap-2">
+            {db.produtos.length > 0 && (
+              <button onClick={() => exportBackup(db)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)]"
+                title="Exportar backup">
+                📥 Exportar
+              </button>
+            )}
+            {temValorHora ? (
             <Link href="/produtos/novo" className="gradient-bg text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90">+ Novo</Link>
           ) : (
             <Link href="/valor-hora" className="bg-[var(--color-warning)]/20 text-[var(--color-warning)] border border-[var(--color-warning)]/30 px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--color-warning)]/30 transition-colors">
               ⚡ Configurar Valor Hora
             </Link>
           )}
-        </div>
+          </div>
+          </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
