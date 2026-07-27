@@ -14,17 +14,17 @@ interface Props {
 
 function formatBRL(v: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v); }
 
-/** Evita o bug `0 || "" = ""` retornando string vazia apenas para null/undefined */
+/** Retorna "" para null, undefined, e 0 também */
 function numStr(v: number | undefined | null): string {
-  if (v === null || v === undefined) return "";
+  if (v === null || v === undefined || v === 0) return "";
   return String(v);
 }
 
 export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: Props) {
   const mostraArea = UNIDADES_COM_AREA.includes(insumo.unidade);
+  const temArea = mostraArea && insumo.altura && insumo.largura && insumo.altura > 0 && insumo.largura > 0;
   const completo = insumo.nome.trim().length > 0 && (insumo.usaPacote ? insumo.quantidadePacote > 0 && insumo.valorPacote > 0 : insumo.custoUnitario > 0);
 
-  // Estados locais de string para evitar que 0 seja tratado como falsy
   const [qtdStr, setQtdStr] = useState(numStr(insumo.quantidade));
   const [alturaStr, setAlturaStr] = useState(numStr(insumo.altura));
   const [larguraStr, setLarguraStr] = useState(numStr(insumo.largura));
@@ -32,7 +32,6 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
   const [qtdPacoteStr, setQtdPacoteStr] = useState(numStr(insumo.quantidadePacote));
   const [valorPacoteStr, setValorPacoteStr] = useState(numStr(insumo.valorPacote));
 
-  // Sincronizar quando insumo mudar externamente
   useEffect(() => {
     setQtdStr(numStr(insumo.quantidade));
     setAlturaStr(numStr(insumo.altura));
@@ -50,8 +49,20 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
 
   const inputClass = `w-full bg-[var(--color-bg-primary)] border border-[var(--color-border-subtle)] rounded-lg px-2 py-2 text-sm text-white placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-border-active)] ${readonly ? "opacity-60 cursor-default" : ""}`;
 
+  // Label adaptativo para custo
+  const custoLabel = temArea ? "Custo total da peça (R$)" : "Custo por unidade (R$)";
+  const custoPlaceholder = temArea ? "Exemplo 35" : "Exemplo 0,80";
+
   return (
-    <div className={`bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden ${completo && readonly ? "border-l-[3px] border-l-[var(--color-success)]" : ""}`}>
+    <div className={`bg-[var(--color-bg-card)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden ${completo ? "border-l-[3px] border-l-[var(--color-success)]" : ""}`}>
+      {/* Barra verde horizontal quando completo */}
+      {completo && !readonly && (
+        <div className="bg-[var(--color-success)]/10 border-b border-[var(--color-success)]/20 px-4 py-1 flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span className="text-[10px] text-[var(--color-success)] font-medium">Preenchido</span>
+        </div>
+      )}
+
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <input type="text" value={insumo.nome}
@@ -64,9 +75,6 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/></svg>
             </button>
           )}
-          {completo && readonly && (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2" className="shrink-0"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -76,14 +84,8 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
               value={mostraArea ? alturaStr : qtdStr}
               onChange={(e) => {
                 if (readonly) return;
-                const v = e.target.value;
-                if (mostraArea) {
-                  setAlturaStr(v);
-                  onChange({ altura: toNum(v) || undefined });
-                } else {
-                  setQtdStr(v);
-                  onChange({ quantidade: toNum(v) });
-                }
+                if (mostraArea) { setAlturaStr(e.target.value); onChange({ altura: toNum(e.target.value) || undefined }); }
+                else { setQtdStr(e.target.value); onChange({ quantidade: toNum(e.target.value) }); }
               }}
               readOnly={readonly}
               placeholder={mostraArea ? "Exemplo 50" : "Exemplo 1"}
@@ -95,13 +97,9 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
               <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Largura</label>
               <input type="text" inputMode="decimal"
                 value={larguraStr}
-                onChange={(e) => {
-                  if (readonly) return;
-                  setLarguraStr(e.target.value);
-                  onChange({ largura: toNum(e.target.value) || undefined });
-                }}
+                onChange={(e) => { if (readonly) return; setLarguraStr(e.target.value); onChange({ largura: toNum(e.target.value) || undefined }); }}
                 readOnly={readonly}
-                placeholder="Exemplo 30"
+                placeholder="Exemplo 35"
                 className={inputClass} />
             </div>
           )}
@@ -122,7 +120,7 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
           <div className="flex items-center gap-2 mb-2">
             <label className="text-[10px] text-[var(--color-text-muted)]">Modo:</label>
             <button onClick={() => !readonly && onChange({ usaPacote: false })}
-              className={`text-[11px] px-2 py-0.5 rounded-md ${!insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"} ${readonly ? "cursor-default" : ""}`}>Custo/un</button>
+              className={`text-[11px] px-2 py-0.5 rounded-md ${!insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"} ${readonly ? "cursor-default" : ""}`}>Direto</button>
             <button onClick={() => !readonly && onChange({ usaPacote: true })}
               className={`text-[11px] px-2 py-0.5 rounded-md ${insumo.usaPacote ? "bg-[var(--color-accent-start)]/20 text-[var(--color-accent-start)]" : "text-[var(--color-text-muted)]"} ${readonly ? "cursor-default" : ""}`}>Pacote</button>
           </div>
@@ -147,11 +145,16 @@ export function InsumoRow({ insumo, onChange, onRemove, canRemove, readonly }: P
             </div>
           ) : (
             <div>
-              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">Custo por unidade (R$)</label>
+              <label className="block text-[10px] text-[var(--color-text-muted)] mb-1">{custoLabel}</label>
               <input type="text" inputMode="decimal" value={custoStr}
                 onChange={(e) => { if (readonly) return; setCustoStr(e.target.value); onChange({ custoUnitario: toNum(e.target.value) }); }}
-                readOnly={readonly} placeholder="Exemplo 0,80"
+                readOnly={readonly} placeholder={custoPlaceholder}
                 className={`${inputClass} w-40`} />
+              {temArea && insumo.custoUnitario > 0 && (
+                <p className="text-[10px] text-[var(--color-accent-start)] mt-0.5">
+                  = {formatBRL(insumo.custoUnitario / (insumo.altura! * insumo.largura!))} por {insumo.unidade}
+                </p>
+              )}
             </div>
           )}
         </div>

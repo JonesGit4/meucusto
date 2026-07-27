@@ -36,17 +36,23 @@ export function valorHoraPorMinuto(vh: ValorHora): Decimal {
 // ═══════════════════════════════════════
 
 export function custoInsumo(insumo: Insumo): Decimal {
-  // Determinar custo unitário (normal ou via pacote)
   let custoUnitario = new Decimal(insumo.custoUnitario);
 
   if (insumo.usaPacote && insumo.quantidadePacote > 0) {
-    // Ex: 50cm por R$45 → custo/un = 45/50 = R$0,90/cm
     custoUnitario = new Decimal(insumo.valorPacote).div(insumo.quantidadePacote);
   }
 
-  // Cálculo por área (m², cm²) ou por quantidade
-  if (UNIDADES_COM_AREA.includes(insumo.unidade) && insumo.altura && insumo.largura) {
+  // Cálculo por área (m², cm²): custoUnitario é o custo TOTAL da peça
+  if (UNIDADES_COM_AREA.includes(insumo.unidade) && insumo.altura && insumo.largura && insumo.altura > 0 && insumo.largura > 0) {
+    // A área é altura × largura
     const area = new Decimal(insumo.altura).times(insumo.largura);
+    // Se o usuário informou custo total da peça (ex: 50×35cm por R$35),
+    // o custo já é o total. Se for pacote, já dividiu.
+    // Se NÃO for pacote, o custoUnitario é o custo total da peça inteira
+    if (!insumo.usaPacote && insumo.custoUnitario > 0) {
+      return new Decimal(insumo.custoUnitario);
+    }
+    // Se for pacote, o custoUnitario já está por unidade de área
     return area.times(custoUnitario);
   }
 
