@@ -146,14 +146,15 @@ export function useLocalDB() {
 
 async function syncToCloud(userId: string, db: LocalDB): Promise<boolean> {
   try {
+    const sb = getSupabase() as any;
     if (db.valorHora) {
-      await getSupabase().from("valor_hora").upsert({
+      await sb.from("valor_hora").upsert({
         user_id: userId, salario: db.valorHora.salario, custo_cnpj: db.valorHora.custoCnpj,
         taxas_fixas: db.valorHora.taxasFixas, horas_mes: db.valorHora.horasMes, updated_at: new Date().toISOString(),
       });
     }
     for (const p of db.produtos.filter((p) => !p.deletedAt)) {
-      await getSupabase().from("produtos").upsert({
+      await sb.from("produtos").upsert({
         id: p.id, user_id: userId, nome: p.nome, tipo: p.tipo, preco_venda: p.precoVenda,
         categoria: p.categoria, imagem_url: p.imagemUrl, insumos: p.insumos,
         tempo_trabalho: p.tempoTrabalho, equipamentos: p.equipamentos, cenarios: p.cenarios,
@@ -169,8 +170,9 @@ async function syncToCloud(userId: string, db: LocalDB): Promise<boolean> {
 
 async function loadFromCloud(userId: string): Promise<LocalDB | null> {
   try {
-    const { data: vh } = await getSupabase().from("valor_hora").select("*").eq("user_id", userId).single();
-    const { data: produtos } = await getSupabase().from("produtos").select("*").eq("user_id", userId).is("deleted_at", null).order("created_at", { ascending: false });
+    const sb = getSupabase() as any;
+    const { data: vh } = await sb.from("valor_hora").select("*").eq("user_id", userId).single();
+    const { data: produtos } = await sb.from("produtos").select("*").eq("user_id", userId).is("deleted_at", null).order("created_at", { ascending: false });
     return {
       versao: 1,
       valorHora: vh ? { salario: vh.salario, custoCnpj: vh.custo_cnpj, taxasFixas: vh.taxas_fixas, horasMes: vh.horas_mes } : null,
