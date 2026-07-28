@@ -146,7 +146,7 @@ export function useLocalDB() {
 
 async function syncToCloud(userId: string, db: LocalDB): Promise<boolean> {
   try {
-    const sb = getSupabase() as any;
+    const sb = getSupabase();
     if (db.valorHora) {
       await sb.from("valor_hora").upsert({
         user_id: userId, salario: db.valorHora.salario, custo_cnpj: db.valorHora.custoCnpj,
@@ -170,7 +170,7 @@ async function syncToCloud(userId: string, db: LocalDB): Promise<boolean> {
 
 async function loadFromCloud(userId: string): Promise<LocalDB | null> {
   try {
-    const sb = getSupabase() as any;
+    const sb = getSupabase();
     const { data: vh } = await sb.from("valor_hora").select("*").eq("user_id", userId).single();
     const { data: produtos } = await sb.from("produtos").select("*").eq("user_id", userId).is("deleted_at", null).order("created_at", { ascending: false });
     return {
