@@ -14,7 +14,7 @@ import {
 } from "@/lib/calculos";
 
 export default function Home() {
-  const { db, loaded, persist } = useLocalDB();
+  const { db, loaded, persist, isCloud } = useLocalDB();
   const produtos = useMemo(() => db.produtos.filter((p) => !p.deletedAt), [db.produtos]);
   const temValorHora = !!db.valorHora;
 
@@ -45,7 +45,10 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--color-bg-primary)] pb-24">
       <header className="sticky top-0 z-10 bg-[var(--color-bg-primary)]/80 backdrop-blur-lg border-b border-[var(--color-border-subtle)]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold"><span className="gradient-text">Meu Custo</span></h1>
+          <h1 className="text-xl font-bold">
+            <span className="gradient-text">Meu Custo</span>
+            {isCloud && <span className="text-xs text-[var(--color-success)] ml-2" title="Salvo na nuvem">☁️</span>}
+          </h1>
           <div className="flex items-center gap-2">
             <AuthButton />
             <label className="text-xs text-[var(--color-text-muted)] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[var(--color-bg-card)] cursor-pointer"
